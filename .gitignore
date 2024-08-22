@@ -1,3 +1,4 @@
+*.tif
 __pycache__/
 wandb/
 data/
