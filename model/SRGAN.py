@@ -22,7 +22,7 @@ from utils.dataloader_utils import histogram as histogram_match
 
 class SRGAN_model(pl.LightningModule):
 
-    def __init__(self, config_dict="configs/config_3band.yaml"):
+    def __init__(self, config_dict="configs/config_NIR.yaml"):
         super(SRGAN_model, self).__init__()
 
         # get config file
@@ -91,6 +91,8 @@ class SRGAN_model(pl.LightningModule):
         Info:
             - This function currently only performs SISR SR
         """
+        # assert model in eval mode
+        assert self.training==False
         
         # move to GPU if possible
         rgb = rgb.to(self.device)
@@ -103,8 +105,6 @@ class SRGAN_model(pl.LightningModule):
         # denormalize images
         if normalize:
             nir_pred = normalise_s2(nir_pred,stage="denorm")
-        # move to CPU
-        nir_pred = nir_pred.cpu().detach()
 
         return nir_pred
 
@@ -112,10 +112,15 @@ class SRGAN_model(pl.LightningModule):
     def training_step(self,batch,batch_idx,optimizer_idx):
         # access data
         rgb,nir = self.extract_batch(batch,overwrite_norm=False)
-        
+
+        nir = normalise_s2(nir,stage="norm")
         # generate NIR images, log losses immediately
         nir_pred = self.forward(rgb)
-        metrics = calculate_metrics(nir_pred,nir,phase="train")
+
+        nir_denorm = normalise_s2(torch.clone(nir),stage="denorm")
+        nir_pred_denorm = normalise_s2(torch.clone(nir_pred),stage="denorm")
+
+        metrics = calculate_metrics(nir_denorm,nir_pred_denorm,phase="train")
         #for key, value in metrics.items():
         #    self.log(f'{key}', value)
         # log dict
@@ -129,8 +134,9 @@ class SRGAN_model(pl.LightningModule):
             adversarial_loss = self.adversarial_loss_criterion(pred_discriminated, torch.ones_like(pred_discriminated))
 
             # Binary Cross-Entropy loss
-            adversarial_loss = self.adversarial_loss_criterion(pred_discriminated,torch.zeros_like(pred_discriminated)) + self.adversarial_loss_criterion(nir_discriminated,
-                                                                    torch.ones_like(nir_discriminated))
+            adversarial_loss = self.adversarial_loss_criterion(pred_discriminated,
+                                                        torch.zeros_like(pred_discriminated)) +self.adversarial_loss_criterion(nir_discriminated,
+                                                        torch.ones_like(nir_discriminated))
             # logg Discriminator loss
             self.log("discriminator/adverserial_loss",adversarial_loss)
 
@@ -158,8 +164,8 @@ class SRGAN_model(pl.LightningModule):
             perceptual_loss = content_loss + self.config.Losses.adv_loss_beta * adversarial_loss
 
             """ 4. Log Generator Loss """
-            #self.log("generator/discr_gan_loss",perceptual_loss)
-            self.log("generator/perceptual_loss",adversarial_loss)
+            self.log("generator/discr_gan_loss",perceptual_loss)
+            self.log("generator/adversarial_loss",adversarial_loss)
             
             # return Generator loss
             return perceptual_loss
@@ -169,29 +175,29 @@ class SRGAN_model(pl.LightningModule):
         
         """ 1. Extract and Predict """
         rgb,nir = self.extract_batch(batch)
-        
-        nir_pred = self.forward(rgb) # TODO: changed this to involve the predict step for reprodicibility, potentially change back
-        # TODO: take care of normalization stuff, where its normalized, where not, and how that interacts with the predict and logging functionalities
-        #sr_imgs = self.predict(lr_imgs)
-
-
-        lr_imgs_vis = nir.clone()
+                
+        # Predict
+        nir_pred = self.predict_step(rgb,normalize=True)
 
         """ 2. Log Generator Metrics """
         # log image metrics
         metrics_nir_img = torch.clone(nir)  # deep copy to avoid graph problems
-        metrics_pred_img = torch.clone(nir_pred)  
+        metrics_pred_img = torch.clone(nir_pred) # deep copy to avoid graph problems
         metrics = calculate_metrics(metrics_pred_img.cpu(),metrics_nir_img.cpu(),phase="val")
         self.log_dict(metrics,on_step=True,on_epoch=True,sync_dist=True)
-
 
         # only perform image logging for n pics, not all 200
         if batch_idx<self.config.Logging.num_val_images:
             # log Stadard image visualizations, deep copy to avoid graph problems
-            val_img = plot_tensors(rgb, nir, nir_pred,title="Validation",stretch=self.config.Data.dataset_type)
+            val_img = plot_tensors(rgb, nir, nir_pred,title="Validation",
+                                   stretch=None, #self.config.Data.dataset_type,
+                                   config=self.config)
             self.logger.experiment.log({"Images/Val SR":  wandb.Image(val_img)}) # log val image
+            self.log_dict({"pred_stats/min":torch.min(nir_pred).item(), # log stats
+                           "pred_stats/max":torch.max(nir_pred).item(),
+                           "pred_stats/mean":torch.min(nir_pred).item()},
+                           on_step=True,on_epoch=True,sync_dist=True)
            
-
         """ 3. Log Discriminator metrics """
         # run discriminator and get loss between pred labels and true labels
         nir_discriminated = self.discriminator(nir)

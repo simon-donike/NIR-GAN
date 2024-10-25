@@ -8,22 +8,16 @@ Data:
   train_batch_size: 8 #12
   val_batch_size: 5
   num_workers: 6
-  prefetch_factor: 2 #8 #2
 
   # Detailed Dataset Setttings
-  dataset_type: 'SEN2' # ['cv', 'SPOT6']
+  dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
   data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
-  sen2_amount: 4
-  spectral_matching: 'histogram'
-  return_type: 'cross_sensor' #interpolated_matched
-
+  spectral_matching: "none" #'histogram'
 
 # Model, Loss, Training  Settings
 Model:
   load_checkpoint: True
-  ckpt_path: "logs/GAN_NIR/2024-08-22_16-21-01/last.ckpt"
-  load_fusion_checkpoint: False
-  fusion_ckpt_path: 'logs\curated_ckpts\pretrained_Fusion.ckpt'
+  ckpt_path: "logs/GAN_NIR/2024-08-22_16-21-01/epoch=7-step=5008.ckpt"
 Warmup:
   fusion: # train fusion in isolation previously
     enable: False
@@ -51,20 +45,20 @@ TruncatedVGG:
   j: 4
 
 Optimizers:
-  optim_g_lr: 1e-4
-  optim_d_lr: 1e-4
+  optim_g_lr: 1e-3
+  optim_d_lr: 1e-3
 
 Schedulers:
   metric: 'val/L1'
-  patience_g: 3
-  patience_d: 3
+  patience_g: 15
+  patience_d: 15
   factor_g: 0.25
   factor_d: 0.25
   verbose: True
   interval: 'epoch'
 
 Losses:
-  adv_loss_beta:  1e-3
+  adv_loss_beta:  0.01
 
 Logging:
   num_val_images: 5

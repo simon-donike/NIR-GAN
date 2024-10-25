@@ -9,16 +9,14 @@ def normalise_s2(im,stage="norm"):
         return(normalise_s2_old(im,stage))
 
     elif len(im.shape)==4 and im.shape[1] == 3: # we're in 3 band SISR, do previous denorm
-        return(normalise_s2_old(im,stage))
+        return(normalise_s2_old_nir(im,stage))
     
     elif len(im.shape)==4 and im.shape[1] == 4: # we're in 4 band MISR, return 4 band linear transform
         return normalise_s2_old(im,stage=stage)
     
-    elif len(im.shape)==5 and im.shape[1] == 4: # we're in 4 band MISR, return 4 band linear transform
-        return linear_transform_4b(im,stage=stage)
     
     elif len(im.shape)==4 and im.shape[1] == 1: # NIR generation
-        return normalise_s2_old(im,stage=stage)
+        return normalise_s2_old_nir(im,stage=stage)
 
     else:
         raise NotImplementedError("Normalization not implemented for this shape of tensor")
@@ -31,13 +29,28 @@ def normalise_s2_old(im,stage="norm"):
     if stage == "norm":
         im = im*(10./value)
         im = torch.clamp(im,0,1)
-        #im = (im*2)-1
-        #im = torch.clamp(im,-1,1)
+        im = (im*2)-1
+        im = torch.clamp(im,-1,1)
     if stage=="denorm":
-        #im = (im+1)/2
+        im = (im+1)/2
         im = im*(value/10.)
         im = torch.clamp(im,0,1)
-        #im = torch.clamp(im,0,1)
+        im = torch.clamp(im,0,1)
+    return(im)
+
+def normalise_s2_old_nir(im,stage="norm"):
+    assert stage in ["norm","denorm"]
+    value = 5.
+    if stage == "norm":
+        im = im*(10./value)
+        im = torch.clamp(im,0,1)
+        im = (im*2)-1
+        im = torch.clamp(im,-1,1)
+    if stage=="denorm":
+        im = (im+1)/2
+        im = im*(value/10.)
+        im = torch.clamp(im,0,1)
+        im = torch.clamp(im,0,1)
     return(im)
 
 def minmax_percentile(img, perc=2):

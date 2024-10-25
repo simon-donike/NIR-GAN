@@ -14,9 +14,11 @@ import pytorch_lightning as pl
 
 # Step 2: Custom Dataset Class
 class S2NAIP_v4(Dataset):
-    def __init__(self, csv_path, phase="train"):
+    def __init__(self, csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
+                 phase="train",chip_size=256):
         assert phase in ["train","test","val"]
         self.phase = phase
+        self.chip_size=chip_size
 
         # read and clean DF
         self.dataframe = pd.read_csv(csv_path)
@@ -112,7 +114,10 @@ class S2NAIP_v4(Dataset):
             hr_image = hr_image/10000
             
         # return images
-        return {"rgb":hr_image[:3,:,:],"nir":hr_image[3:,:,:]}
+        return {"rgb":hr_image[:3,:self.chip_size,:self.chip_size],
+                "nir":hr_image[3:,:self.chip_size,:self.chip_size]}
+
+
 
 
 
@@ -125,8 +130,12 @@ class SEN2NAIP_datamodule(pl.LightningDataModule):
         self.num_workers = config.Data.num_workers
         self.config = config
         # Initialize the dataset
-        self.dataset_train = S2NAIP_v4(phase="test",csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv")
-        self.dataset_val = S2NAIP_v4(phase="val",csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv")
+        self.dataset_train = S2NAIP_v4(phase="test",
+                                       csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
+                                       chip_size=256)
+        self.dataset_val = S2NAIP_v4(phase="val",
+                                     csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
+                                     chip_size=256)
         
 
     def train_dataloader(self):        

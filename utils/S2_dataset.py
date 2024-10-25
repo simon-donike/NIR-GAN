@@ -85,7 +85,7 @@ class S2_datamodule(pl.LightningDataModule):
         super().__init__()
 
         self.root_dir = config.Data.data_dir
-        self.patch_size = 512
+        self.patch_size = 256
         self.num_workers = config.Data.num_workers
         self.config = config
         # Initialize the dataset

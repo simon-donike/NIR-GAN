@@ -9,16 +9,16 @@ from utils.normalise_s2 import minmax_percentile
 import skimage
 
 
-def plot_tensors(rgb, nir, pred_nir,title="Train",stretch=None):
+def plot_tensors(rgb, nir, pred_nir,title="Train",stretch=None,config=None):
     # prepare tensors
     if stretch=="SEN2":
-        rgb = normalise_s2(rgb,stage="denorm")
         nir = normalise_s2(nir,stage="denorm")
         pred_nir = normalise_s2(pred_nir,stage="denorm")
-        rgb = sen2_stretch(rgb)
         pred_nir = sen2_stretch(pred_nir)
+    elif stretch==None:
+        pass
     else:
-        raise NotImplementedError("Stretch not implemented")
+        raise NotImplementedError("Stretch not implemented:",stretch)
     
     zoom = 256
     rgb = rgb * (10.0 / 3.0) # visualization stretch
@@ -28,7 +28,7 @@ def plot_tensors(rgb, nir, pred_nir,title="Train",stretch=None):
 
     rgb = rgb.clamp(0,1)
     nir = nir.clamp(0,1)
-    pred_nir = pred_nir.clamp(0,1)
+    #pred_nir = pred_nir.clamp(0,1)
 
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 3, figsize=(15, 5 * num_images_to_plot))
@@ -45,18 +45,20 @@ def plot_tensors(rgb, nir, pred_nir,title="Train",stretch=None):
         pred_nir_image = pred_nir_image.cpu().numpy()
 
         # histogram match images
-        pred_nir_image =  skimage.exposure.match_histograms(pred_nir_image, nir_image)
+        if config != None:
+            if config.Data.spectral_matching == "histogram":
+                pred_nir_image =  skimage.exposure.match_histograms(pred_nir_image, nir_image)
 
         # Plot the RGB image
         axes[i, 0].imshow(rgb_image)
         #axes[i, 0].axis('off')
 
         # Plot the NIR image
-        axes[i, 1].imshow(nir_image, cmap='viridis')
+        axes[i, 1].imshow(nir_image, cmap='YlGn')
         #axes[i, 1].axis('off')
 
         # Plot the NIR image
-        axes[i, 2].imshow(pred_nir_image, cmap='viridis')
+        axes[i, 2].imshow(pred_nir_image, cmap='YlGn')
         #axes[i, 2].axis('off')
 
         if i == 0:

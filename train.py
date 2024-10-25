@@ -5,16 +5,14 @@ from omegaconf import OmegaConf
 import wandb
 import os, datetime
 from multiprocessing import freeze_support
+import matplotlib.pyplot as plt
+
 
 # local imports
 from model.SRGAN import SRGAN_model
 
-#os.environ["WANDB_MODE"] = "online"
-
 # Set GPU
-#os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # Run Main Function
 if __name__ == '__main__':
@@ -37,13 +35,42 @@ if __name__ == '__main__':
     if config.Model.load_checkpoint==True:
         resume_from_checkpoint=config.Model.ckpt_path
 
+    custom_load = True
+    if custom_load:
+        ckpt = torch.load("logs/GAN_NIR/2024-08-23_17-20-49/epoch=15-step=21984.ckpt")["state_dict"]
+        model.load_state_dict(ckpt)
+
     #############################################################################################################
     """ GET DATA """
     #############################################################################################################
     # create dataloaders via dataset_selector -> config -> class selection -> convert to pl_module
     from utils.S2_dataset import S2_datamodule
     from utils.SEN2NAIP_v4 import SEN2NAIP_datamodule
-    pl_datamodule = SEN2NAIP_datamodule(config)
+    from utils.combined_datasets import create_combined_dataset
+    pl_datamodule = create_combined_dataset(config)
+    print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
+
+    # fuck around to find out
+    test = True
+    if test:
+        b = next(iter(pl_datamodule.train_dataloader()))
+        model = model.eval()
+        fake_nir = model.predict_step(b["rgb"])
+        model = model.train()
+        fake_nir = fake_nir.detach().cpu().numpy()[0]
+        # save image to disk
+        plt.imshow(fake_nir[0,:,:])
+        plt.savefig("z_fake_nir.png")
+        plt.close()
+
+        plt.imshow(b["rgb"].detach().cpu().numpy()[0,:3,:,:].transpose(1,2,0)*3)
+        plt.savefig("z_rgb.png")
+        plt.close()
+
+        plt.imshow(b["nir"].detach().cpu().numpy()[0,0,:,:])
+        plt.savefig("z_nir.png")
+        plt.close()
+
 
     #############################################################################################################
     """ Configure Trainer """
@@ -83,7 +110,7 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[0,1,2,3],
+                    devices=[0],
                     strategy="ddp",
                     check_val_every_n_epoch=1,
                     val_check_interval=1.,
@@ -102,4 +129,3 @@ if __name__ == '__main__':
     trainer.fit(model, datamodule=pl_datamodule)
     wandb.finish()
     writer.close()
-
