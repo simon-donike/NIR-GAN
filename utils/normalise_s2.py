@@ -2,6 +2,31 @@ import torch
 from einops import rearrange
 
 
+def perf_norm(im,value,stage="norm"):
+    assert stage in ["norm","denorm"]
+    value = value
+    if stage == "norm":
+        im = im*(10./value)
+        im = torch.clamp(im,0,1)
+        im = (im*2)-1
+        im = torch.clamp(im,-1,1)
+    if stage=="denorm":
+        im = (im+1)/2
+        im = im*(value/10.)
+        im = torch.clamp(im,0,1)
+        im = torch.clamp(im,0,1)
+    return(im)
+
+
+def normalize_rgb(im,stage="norm"):
+    im = perf_norm(im,3.,stage=stage)
+    return(im)
+def normalize_nir(im,stage="norm"):
+    im = perf_norm(im,5.,stage=stage)
+    return(im)
+
+
+
 def normalise_s2(im,stage="norm"):
     # Selector for normalization process
 

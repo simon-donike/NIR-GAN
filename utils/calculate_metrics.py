@@ -2,9 +2,8 @@
 import torch
 import torch.nn.functional as F
 import kornia
-from utils.normalise_s2 import normalise_s2
 
-def calculate_metrics(sr, hr, phase="train"):
+def calculate_metrics(pred, target, phase="train"):
     """
     Calculate PSNR, SSIM, L1 loss, and L2 loss between sr and hr.
 
@@ -15,22 +14,18 @@ def calculate_metrics(sr, hr, phase="train"):
     Returns:
         dict: Dictionary containing the calculated metrics.
     """
-    # bring back to 0..1
-    sr = normalise_s2(sr,stage="denorm")
-    hr = normalise_s2(hr,stage="denorm")
-
 
     # Calculate L1 loss
-    l1_loss = F.l1_loss(sr, hr).item()
+    l1_loss = F.l1_loss(pred, target).item()
 
     # Calculate L2 loss (MSE)
-    l2_loss = F.mse_loss(sr, hr).item()
+    l2_loss = F.mse_loss(pred, target).item()
 
     # Calculate PSNR
-    psnr = kornia.metrics.psnr(sr, hr, 1.0).item()
+    psnr = kornia.metrics.psnr(pred, target, 1.0).item()
     
     # Calculate SSIM
-    ssim = kornia.metrics.ssim(sr,hr,window_size=5,max_val=1.).mean().item()
+    ssim = kornia.metrics.ssim(pred,target,window_size=5,max_val=1.).mean().item()
 
     metrics = {
         phase+'/L1': l1_loss,

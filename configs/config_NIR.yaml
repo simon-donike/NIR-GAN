@@ -5,18 +5,21 @@ bands: 3
 # Data Settings
 Data:
   # Loader Settings
-  train_batch_size: 8 #12
-  val_batch_size: 5
-  num_workers: 6
+  train_batch_size: 24 #12
+  val_batch_size: 8
+  num_workers: 8
 
   # Detailed Dataset Setttings
   dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
   data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
   spectral_matching: "none" #'histogram'
+  sen2naip_settings:
+    base_path: "/data2/simon/"
+    dataset_type: "synthetic2"
 
 # Model, Loss, Training  Settings
 Model:
-  load_checkpoint: True
+  load_checkpoint: False
   ckpt_path: "logs/GAN_NIR/2024-08-22_16-21-01/epoch=7-step=5008.ckpt"
 Warmup:
   fusion: # train fusion in isolation previously

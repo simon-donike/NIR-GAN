@@ -6,14 +6,16 @@ import os
 from io import BytesIO
 import numpy as np
 import h5py
+import pytorch_lightning as pl
 
 
 # Define your dataset class
 class SEN2NAIPv2(Dataset):
     def __init__(self, config, phase="train"):        
         # extract infos from config
-        base_path = config.data.sen2naip_settings.base_path
-        dataset_type = config.data.sen2naip_settings.dataset_type
+        self.config = config
+        base_path = config.Data.sen2naip_settings.base_path
+        dataset_type = config.Data.sen2naip_settings.dataset_type
 
         assert dataset_type in ["real","synthetic1","synthetic2"],"Dataset type not found. Choose from ['real','synthetic-v1','synthetic-v2']"
         self.path = os.path.join(base_path,'SEN2NAIPv2-'+dataset_type,"main.json")
@@ -63,8 +65,12 @@ class SEN2NAIPv2(Dataset):
         hr = self.get_b4(hr)
         lr = lr/10000.
         hr = hr/10000.
-
-        return {"LR_image":lr,"image":hr}
+        
+        # get random number between 0 and 1
+        #random_number = np.random.rand()
+        #if random_number>0.85:
+        #    pass     
+        return {"rgb": lr[:3,:,:], "nir": lr[3:,:,:]}
 
     def get_data(self,datapoint):
         data_bytes = mlstac.get_data(dataset=datapoint,
@@ -81,6 +87,32 @@ class SEN2NAIPv2(Dataset):
         hr1 = hr1.astype(np.float32)
 
         return(lr1,hr1)
+    
 
 
+class S2NAIP_dm(pl.LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        # Initialize the dataset
+        self.config=config
+        self.num_workers = config.Data.num_workers
+        self.dataset_train = SEN2NAIPv2(config,phase="train")
+        self.dataset_val = SEN2NAIPv2(config,phase="val")
+
+    def train_dataloader(self):        
+        return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
+                          shuffle=True, num_workers=self.num_workers)
+
+    def val_dataloader(self):
+        return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
+                          shuffle=True, num_workers=self.num_workers,drop_last=True)
+
+
+
+
+
+if __name__ == "__main__":
+    from omegaconf import OmegaConf
+    config = OmegaConf.load("configs/config_NIR.yaml")
+    pl_datamodule = S2NAIP_dm(config)
 

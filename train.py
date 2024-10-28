@@ -35,7 +35,7 @@ if __name__ == '__main__':
     if config.Model.load_checkpoint==True:
         resume_from_checkpoint=config.Model.ckpt_path
 
-    custom_load = True
+    custom_load = False
     if custom_load:
         ckpt = torch.load("logs/GAN_NIR/2024-08-23_17-20-49/epoch=15-step=21984.ckpt")["state_dict"]
         model.load_state_dict(ckpt)
@@ -44,10 +44,8 @@ if __name__ == '__main__':
     """ GET DATA """
     #############################################################################################################
     # create dataloaders via dataset_selector -> config -> class selection -> convert to pl_module
-    from utils.S2_dataset import S2_datamodule
-    from utils.SEN2NAIP_v4 import SEN2NAIP_datamodule
-    from utils.combined_datasets import create_combined_dataset
-    pl_datamodule = create_combined_dataset(config)
+    from utils.S2NAIP_final import S2NAIP_dm
+    pl_datamodule = S2NAIP_dm(config)
     print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
 
     # fuck around to find out
@@ -60,15 +58,15 @@ if __name__ == '__main__':
         fake_nir = fake_nir.detach().cpu().numpy()[0]
         # save image to disk
         plt.imshow(fake_nir[0,:,:])
-        plt.savefig("z_fake_nir.png")
+        plt.savefig("images/z_fake_nir.png")
         plt.close()
 
         plt.imshow(b["rgb"].detach().cpu().numpy()[0,:3,:,:].transpose(1,2,0)*3)
-        plt.savefig("z_rgb.png")
+        plt.savefig("images/z_rgb.png")
         plt.close()
 
         plt.imshow(b["nir"].detach().cpu().numpy()[0,0,:,:])
-        plt.savefig("z_nir.png")
+        plt.savefig("images/z_nir.png")
         plt.close()
 
 
@@ -77,8 +75,8 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "GAN_NIR" #"testing"
-    wandb_logger = WandbLogger(project=wandb_project,entity="simon-donike")
+    wandb_project = "GAN_NIR" 
+    wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers
     tb_logger = pl_loggers.TensorBoardLogger(save_dir=os.path.normpath("logs/"))
