@@ -53,8 +53,8 @@ Optimizers:
 
 Schedulers:
   metric: 'val/L1'
-  patience_g: 15
-  patience_d: 15
+  patience_g: 25
+  patience_d: 25
   factor_g: 0.25
   factor_d: 0.25
   verbose: True
