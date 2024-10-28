@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 
 # local imports
 from model.SRGAN import SRGAN_model
+from model.pix2pix import Px2Px
 
 # Set GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -28,17 +29,12 @@ if __name__ == '__main__':
     " LOAD MODEL "
     #############################################################################################################
     # load rpetrained or instanciate new
-    model = SRGAN_model(config).to(device)
+    model = Px2Px(config).to(device)
 
     # set reload checkpoint settings for trainer
     resume_from_checkpoint=None
     if config.Model.load_checkpoint==True:
         resume_from_checkpoint=config.Model.ckpt_path
-
-    custom_load = False
-    if custom_load:
-        ckpt = torch.load("logs/GAN_NIR/2024-08-23_17-20-49/epoch=15-step=21984.ckpt")["state_dict"]
-        model.load_state_dict(ckpt)
 
     #############################################################################################################
     """ GET DATA """
