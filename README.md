@@ -1,57 +1,30 @@
 # NIR-SRGAN: Synthetic NIR band from RGB Satellite Imagery
 ![Sample Result](resources/banner.png)
 
-
-
 ## Overview
 
-**NIR_SRGAN** is a repository dedicated to synthesizing Near-Infrared (NIR) imagery from high-resolution RGB images using a Generative Adversarial Network (GAN). This project leverages RGB images at 2.5m resolution from the National Agriculture Imagery Program (NAIP) and synthesizes them to resemble Sentinel-2 (Sen2) imagery. The core functionality involves training a GAN to generate synthetic NIR images solely from the RGB bands.
+NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB Sentinel-2 satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available.
 
 ## Project Objectives
 
-- **Resolution Enhancement**: Utilize RGB images from NAIP with a 2.5m spatial resolution to produce high-quality synthetic images that mimic the characteristics of Sentinel-2 imagery.
+- **NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of Sentinel-2 imagery.
   
-- **NIR Synthesis**: Employ a GAN architecture to generate fake NIR bands using only the RGB bands from the input images.
+- **Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands without relying on indices like NDVI that require both true NIR and red bands.
 
 ## Data
+The model is trained using low-resolution (10m) Sentinel-2 satellite imagery, specifically focusing on RGB inputs and the corresponding NIR band. This dataset provides the necessary spectral information in the visible and near-infrared range to train the GAN for NIR prediction.
+- **Input Data**: Sentinel-2 RGB Bands, used as input to the generator to synthesize the NIR band.
+- **Target Data**: Sentinel-2 NIR Band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.
 
-### Input Data
-
-- **NAIP Imagery**: RGB images at 2.5m resolution, captured by the National Agriculture Imagery Program (NAIP).
-- **SEN2 Images**: Alternatively, Sen2 images at 10m can be used.
 
 ### Output Data
-
-- **Synthesized Sentinel-2 Imagery**: RGB images synthetically adjusted to resemble Sentinel-2 data.
 - **Fake NIR Images**: Generated NIR bands based solely on the input RGB bands.
 
-## Methodology
-
-The workflow of this project can be broken down into the following steps:
-
-1. **Data Preprocessing**:
-   - RGB images from NAIP are collected and preprocessed to match the spatial and spectral characteristics of Sentinel-2 imagery.
-   
-2. **Image Synthesis**:
-   - The RGB images are fed into a GAN architecture designed to enhance and adjust the RGB bands to mimic Sentinel-2 imagery.
-
-3. **NIR Band Generation**:
-   - The key innovation of this project is the generation of fake NIR bands from the adjusted RGB images using a specialized GAN model.
-   
-4. **Model Training**:
-   - The GAN model is trained on paired data of RGB and real NIR bands to learn the mapping between the RGB bands and the corresponding NIR band.
-   
-5. **Evaluation**:
-   - The performance of the synthetic NIR bands is evaluated using various quantitative metrics and visual inspection.
-
 ## Architecture
+The GAN model used in this project is a modified version of SRResNet, tailored specifically for predicting a single NIR band from three input RGB bands. The generator has its upscaling components disabled, focusing solely on NIR prediction rather than super-resolution. The discriminator is adapted to accept and evaluate only the NIR band, assessing the quality of the synthetic output. This model, selected for rapid experimentation, comprises approximately 25 million parameters, balancing model complexity with efficient training.
 
-### Generative Adversarial Network (GAN)
-
-The GAN architecture consists of:
-
-- **Generator**: Learns to generate synthetic NIR bands from the input RGB images.
-- **Discriminator**: Evaluates the realism of the generated NIR bands, distinguishing them from real NIR images.
+- **Generator**: The generator is based on a modified SRResNet architecture, adapted to produce a single NIR band output from RGB input. 3 bands in, 1 band out.
+- **Discriminator**: The discriminator classifies the synthetic NIR bands as real or fake. This model is structured as a deep convolutional network with progressively deeper feature extraction. 1 band in, evaluation score out.
 
 ### Installation
 
