@@ -64,4 +64,4 @@ Losses:
   adv_loss_beta:  0.1
 
 Logging:
-  num_val_images: 5
+  num_val_images: 1

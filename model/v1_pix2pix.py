@@ -8,25 +8,36 @@ from utils.normalise_s2 import normalize_nir
 from utils.calculate_metrics import calculate_metrics
 from utils.logging_helpers import plot_tensors
 from utils.logging_helpers import plot_ndvi
-from model.pix2pix_model import Pix2PixModel
 
-class Px2Px_PL(pl.LightningModule):
+class Px2Px(pl.LightningModule):
     def __init__(self, config_dict="configs/config_NIR.yaml"):
-        super().__init__()
+        super(Px2Px, self).__init__()
+
         # Load configuration
         if isinstance(config_dict, str):
             self.config = OmegaConf.load(config_dict)
         else:
             self.config = config_dict
-            
-        # load Px2Px configs
-        self.model = Pix2PixModel(self.config)
+
+        # Import and initialize Generator and Discriminator
+        from model.v1_pix2pix_modules import Generator128 as Generator
+        from model.v1_pix2pix_modules import Discriminator128 as Discriminator
+
+        # Initialize generator and discriminator with specified parameters
+        self.generator = Generator(input_dim=3, num_filter=64, output_dim=1)
+        self.discriminator = Discriminator(input_dim=1, num_filter=64,output_dim=1)
+
+        # Initialize weights as per the previous script
+        self.generator.normal_weight_init(mean=0.0, std=0.02)
+        self.discriminator.normal_weight_init(mean=0.0, std=0.02)
+
+        # BCE loss
+        self.L1_loss = torch.nn.MSELoss()
+        self.BCE_loss = torch.nn.BCELoss()
         
 
-    def forward(self, input):
-        """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        pred = self.model.netG(input)  # G(A)
-        return pred
+    def forward(self, lr_imgs):
+        return self.generator(lr_imgs)
 
     @torch.no_grad()
     def predict_step(self, rgb, normalize=True):
@@ -121,6 +132,12 @@ class Px2Px_PL(pl.LightningModule):
     
     
 if __name__ == "__main__":
-    config = OmegaConf.load("configs/config_px2px.yaml")
-    model = Px2Px_PL(config)
+    config = OmegaConf.load("configs/config_px.yaml")
+    model = Px2Px().cuda()
+    model.forward(torch.rand(1,3,128,128).cuda()).shape
+    
+    batch = {"rgb": torch.rand(1,3,128,128).cuda(), "nir": torch.rand(1,1,128,128).cuda()}
+    model.training_step(batch,1,optimizer_idx=1)
+    
+    model.discriminator.forward(torch.rand(1,1,256,256).cuda()).squeeze()
     

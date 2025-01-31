@@ -1,0 +1,23 @@
+base_configs:
+  direction: "AtoB"
+  gpu_ids:
+    - 0
+  isTrain: true
+  checkpoints_dir: "logs/checkpoints_px"
+  full_key: null
+  name: "px"
+  preprocess: null
+  input_nc: 4
+  output_nc: 1
+  ngf: 64
+  ndf: 64
+  netD: "basic"
+  netG: "resnet_9blocks"
+  norm: "instance"
+  no_dropout: true
+  init_type: "normal"
+  init_gain: 0.02
+  n_layers_D: 3
+  gan_mode: "lsgan"
+  lr: 0.0002
+  beta1: 0.5
