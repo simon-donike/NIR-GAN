@@ -75,6 +75,7 @@ class Px2Px_PL(pl.LightningModule):
             nir = normalize_nir(nir, stage="norm")
 
         # check for OPtimization regarding multiple pred steps in 1 training step
+        # TODO: get optimization to work with cache, keep gradients intact
         use_optimization = False
         if use_optimization:
             # If Cache is empty, run prediction and save cache
@@ -90,6 +91,8 @@ class Px2Px_PL(pl.LightningModule):
 
 
         # 1. Backward_G
+        # TODO: This seems the wring way around. Veryfiy order
+        # TODO: Log metrics such as L1 and stuff at every step
         if optimizer_idx == 1:
             # 1.1 emulate backward_D
             # 1.1.1 Fake

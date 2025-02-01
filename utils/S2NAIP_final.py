@@ -101,7 +101,7 @@ class S2NAIP_dm(pl.LightningDataModule):
 
     def train_dataloader(self):        
         return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
-                          shuffle=True, num_workers=self.num_workers,prefetch_factor=config.Data.prefetch_factor,drop_last=True)
+                          shuffle=True, num_workers=self.num_workers,prefetch_factor=self.config.Data.prefetch_factor,drop_last=True)
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,

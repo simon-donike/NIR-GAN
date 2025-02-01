@@ -29,7 +29,7 @@ custom_configs:
     ckpt_path: ""
 
 Schedulers:
-  metric: 'val/L1'
+  metric: 'discriminator_loss'
   patience_g: 15
   patience_d: 15
   factor_g: 0.25
