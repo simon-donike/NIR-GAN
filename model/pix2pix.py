@@ -11,7 +11,7 @@ from utils.logging_helpers import plot_ndvi
 from model.pix2pix_model import Pix2PixModel
 
 class Px2Px_PL(pl.LightningModule):
-    def __init__(self, config_dict="configs/config_NIR.yaml"):
+    def __init__(self, config_dict="configs/config_px2px.yaml"):
         super().__init__()
         # Load configuration
         if isinstance(config_dict, str):
@@ -21,6 +21,9 @@ class Px2Px_PL(pl.LightningModule):
             
         # load Px2Px configs
         self.model = Pix2PixModel(self.config)
+
+        # set setings
+        self.normalize = self.config.custom_configs.normalize
         
 
     def forward(self, input):
@@ -29,25 +32,31 @@ class Px2Px_PL(pl.LightningModule):
         return pred
 
     @torch.no_grad()
-    def predict_step(self, rgb, normalize=True):
-        assert not self.training, "Model should be in eval mode for predictions"
+    def predict_step(self, rgb, normalize=False):
+        #if self.training:
+        #    self.model = self.model.eval()
+        #assert not self.training, "Model should be in eval mode for predictions"
         rgb = rgb.to(self.device)
         if normalize:
             from utils.normalise_s2 import normalize_rgb, normalize_nir
             rgb_norm = normalize_rgb(rgb, stage="norm")
-            nir_pred = self.generator(rgb_norm)
+            nir_pred = self.model.netG(rgb_norm)
             return normalize_nir(nir_pred, stage="denorm")
         else:
-            return self.generator(rgb)
+            nir_pred = self.model.netG(rgb)
+            return nir_pred
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         rgb, nir = self.extract_batch(batch)
-        rgb_norm = normalize_rgb(rgb, stage="norm")
-        nir_pred = self.generator(rgb_norm)
+        if self.normalize:
+            rgb = normalize_rgb(rgb, stage="norm")
+            nir = normalize_nir(nir, stage="norm")
+        nir_pred = self.generator(rgb)
 
         # Generator Step
         if optimizer_idx == 1:
-            content_loss = self.L1_loss(nir_pred, normalize_nir(nir, stage="norm"))
+
+            content_loss = self.L1_loss(nir_pred, nir)
             fake_disc = self.discriminator(nir_pred).squeeze()
             adv_loss = self.BCE_loss(fake_disc, torch.ones_like(fake_disc))
             loss = content_loss + self.config.Losses.adv_loss_beta * adv_loss
@@ -102,14 +111,8 @@ class Px2Px_PL(pl.LightningModule):
         self.log("val/Disc_adversarial_loss",adversarial_loss,sync_dist=True)
 
     def configure_optimizers(self):
-        #parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for Adam optimizer')
-        #parser.add_argument('--beta2', type=float, default=0.999, help='beta2 for Adam optimizer')
-        optim_g = torch.optim.Adam(self.generator.parameters(),
-                                   lr=self.config.Optimizers.optim_g_lr,
-                                   betas=(0.5, 0.999))
-        optim_d = torch.optim.Adam(self.discriminator.parameters(),
-                                   lr=self.config.Optimizers.optim_d_lr,
-                                   betas=(0.5, 0.999))
+        optim_g = self.model.optimizer_G
+        optim_d = self.model.optimizer_D
         sched_g = ReduceLROnPlateau(optim_g, mode='min', patience=self.config.Schedulers.patience_g)
         sched_d = ReduceLROnPlateau(optim_d, mode='min', patience=self.config.Schedulers.patience_d)
         return ([optim_d, optim_g], 
@@ -117,10 +120,16 @@ class Px2Px_PL(pl.LightningModule):
                  {'scheduler': sched_g, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'}])
     
     def extract_batch(self, batch):
-        return batch["rgb"], batch["nir"]
+        rgb = batch["rgb"]
+        nir = batch["nir"]
+        return rgb, nir
     
     
 if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px.yaml")
-    model = Px2Px_PL(config)
+    m = Px2Px_PL(config)
+
+    # try out
+    a = torch.rand(1,3,512,512)
+    pred = m.predict_step(a)
     

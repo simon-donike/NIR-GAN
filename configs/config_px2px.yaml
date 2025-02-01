@@ -7,7 +7,7 @@ base_configs:
   full_key: null
   name: "px"
   preprocess: null
-  input_nc: 4
+  input_nc: 3
   output_nc: 1
   ngf: 64
   ndf: 64
@@ -21,3 +21,5 @@ base_configs:
   gan_mode: "lsgan"
   lr: 0.0002
   beta1: 0.5
+custom_configs:
+  normalize: False

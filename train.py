@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 # local imports
 from model.SRGAN import SRGAN_model
-from model.pix2pix import Px2Px
+from model.pix2pix import Px2Px_PL
 
 # Set GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     " LOAD MODEL "
     #############################################################################################################
     # load rpetrained or instanciate new
-    model = Px2Px(config).to(device)
+    model = Px2Px_PL(config).to(device)
 
     # set reload checkpoint settings for trainer
     resume_from_checkpoint=None
