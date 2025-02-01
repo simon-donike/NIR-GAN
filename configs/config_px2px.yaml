@@ -23,16 +23,26 @@ base_configs:
 
 custom_configs:
   Logging:
-    num_val_images: 5
+    num_val_images: 1
   Model:
     load_checkpoint: False
     ckpt_path: ""
 
+Schedulers:
+  metric: 'val/L1'
+  patience_g: 15
+  patience_d: 15
+  factor_g: 0.25
+  factor_d: 0.25
+  verbose: True
+  interval: 'epoch'
+
 Data:
-  train_batch_size: 5
+  train_batch_size: 32
   val_batch_size: 5
-  num_workers: 4
+  num_workers: 8
   normalize: False
+  prefetch_factor: 2
 
   # Detailed Dataset Setttings
   dataset_type: 'S2NAIP' # ['cv', 'SPOT6']

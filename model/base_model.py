@@ -32,7 +32,6 @@ class BaseModel(ABC):
         self.opt = opt
         #elf.gpu_ids = opt.gpu_ids
         self.isTrain = opt.isTrain
-        self.device = torch.device("cpu") #et device name: CPU or GPU
         self.save_dir = os.path.join(opt.checkpoints_dir, opt.name)  # save all the checkpoints to save_dir
         if opt.preprocess != 'scale_width':  # with [scale_width], input images might have different sizes, which hurts the performance of cudnn.benchmark.
             torch.backends.cudnn.benchmark = True
@@ -175,12 +174,14 @@ class BaseModel(ABC):
         else:
             self.__patch_instance_norm_state_dict(state_dict, getattr(module, key), keys, i + 1)
 
+    """
     def load_networks(self, epoch):
-        """Load all the networks from the disk.
+        #Load all the networks from the disk.
 
-        Parameters:
-            epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
-        """
+        #Parameters:
+        
+        #    epoch (int) -- current epoch; used in the file name '%s_net_%s.pth' % (epoch, name)
+        
         for name in self.model_names:
             if isinstance(name, str):
                 load_filename = '%s_net_%s.pth' % (epoch, name)
@@ -199,13 +200,15 @@ class BaseModel(ABC):
                 for key in list(state_dict.keys()):  # need to copy keys here because we mutate in loop
                     self.__patch_instance_norm_state_dict(state_dict, net, key.split('.'))
                 net.load_state_dict(state_dict)
+    """
 
+    """
     def print_networks(self, verbose):
-        """Print the total number of parameters in the network and (if verbose) network architecture
+        #Print the total number of parameters in the network and (if verbose) network architecture
 
-        Parameters:
-            verbose (bool) -- if verbose: print the network architecture
-        """
+        #Parameters:
+        #    verbose (bool) -- if verbose: print the network architecture
+        
         print('---------- Networks initialized -------------')
         for name in self.model_names:
             if isinstance(name, str):
@@ -217,6 +220,7 @@ class BaseModel(ABC):
                     print(net)
                 print('[Network %s] Total number of parameters : %.3f M' % (name, num_params / 1e6))
         print('-----------------------------------------------')
+    """
 
     def set_requires_grad(self, nets, requires_grad=False):
         """Set requies_grad=Fasle for all the networks to avoid unnecessary computations

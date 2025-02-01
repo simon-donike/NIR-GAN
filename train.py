@@ -12,9 +12,6 @@ import matplotlib.pyplot as plt
 from model.SRGAN import SRGAN_model
 from model.pix2pix import Px2Px_PL
 
-# Set GPU
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 # Run Main Function
 if __name__ == '__main__':
     # enable if running on Windows
@@ -29,7 +26,7 @@ if __name__ == '__main__':
     " LOAD MODEL "
     #############################################################################################################
     # load rpetrained or instanciate new
-    model = Px2Px_PL(config).to(device)
+    model = Px2Px_PL(config)
 
     # set reload checkpoint settings for trainer
     resume_from_checkpoint=None
@@ -44,11 +41,11 @@ if __name__ == '__main__':
     pl_datamodule = S2NAIP_dm(config)
     print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
 
-    # fuck around to find out
-    test = True
+    # Do a test on model and adtaloader + visualzation
+    test = False
     if test:
         from utils.test_dataset import save_ds_image
-        save_ds_image(pl_datamodule)
+        save_ds_image(pl_datamodule,model)
 
 
     #############################################################################################################
@@ -56,7 +53,7 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "px2px" 
+    wandb_project = "NIR_GAN" 
     wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers
@@ -70,7 +67,7 @@ if __name__ == '__main__':
     print("Experiment Path:",dir_save_checkpoints)
 
     checkpoint_callback = ModelCheckpoint(dirpath=dir_save_checkpoints,
-                                            monitor='val/L1',
+                                            monitor=config.Schedulers.metric,
                                         mode='min',
                                         save_last=True,
                                         save_top_k=2)
@@ -80,7 +77,7 @@ if __name__ == '__main__':
 
     # callback to set up early stopping
     from pytorch_lightning.callbacks.early_stopping import EarlyStopping
-    early_stop_callback = EarlyStopping(monitor="val/L1", min_delta=0.00, patience=1000, verbose=True,
+    early_stop_callback = EarlyStopping(monitor=config.Schedulers.metric, min_delta=0.00, patience=1000, verbose=True,
                                     mode="min",check_finite=True) # patience in epochs
 
 
@@ -89,11 +86,11 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[3],
+                    devices=[0,1,2,3],
                     strategy="ddp",
-                    check_val_every_n_epoch=1,
-                    val_check_interval=1.,
-                    limit_val_batches=5,
+                    check_val_every_n_epoch=10,
+                    #val_check_interval=1.,
+                    limit_val_batches=20,
                     max_epochs=99999,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
@@ -108,3 +105,6 @@ if __name__ == '__main__':
     trainer.fit(model, datamodule=pl_datamodule)
     wandb.finish()
     writer.close()
+
+
+
