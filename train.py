@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # General
     torch.set_float32_matmul_precision('medium')
     # load config
-    config = OmegaConf.load("configs/config_NIR.yaml")
+    config = OmegaConf.load("configs/config_px2px.yaml")
 
     #############################################################################################################
     " LOAD MODEL "
@@ -33,8 +33,8 @@ if __name__ == '__main__':
 
     # set reload checkpoint settings for trainer
     resume_from_checkpoint=None
-    if config.Model.load_checkpoint==True:
-        resume_from_checkpoint=config.Model.ckpt_path
+    if config.custom_configs.Model.load_checkpoint==True:
+        resume_from_checkpoint=config.custom_configs.Model.ckpt_path
 
     #############################################################################################################
     """ GET DATA """
@@ -47,23 +47,8 @@ if __name__ == '__main__':
     # fuck around to find out
     test = True
     if test:
-        b = next(iter(pl_datamodule.train_dataloader()))
-        model = model.eval()
-        fake_nir = model.predict_step(b["rgb"])
-        model = model.train()
-        fake_nir = fake_nir.detach().cpu().numpy()[0]
-        # save image to disk
-        plt.imshow(fake_nir[0,:,:])
-        plt.savefig("images/z_fake_nir.png")
-        plt.close()
-
-        plt.imshow(b["rgb"].detach().cpu().numpy()[0,:3,:,:].transpose(1,2,0)*3)
-        plt.savefig("images/z_rgb.png")
-        plt.close()
-
-        plt.imshow(b["nir"].detach().cpu().numpy()[0,0,:,:])
-        plt.savefig("images/z_nir.png")
-        plt.close()
+        from utils.test_dataset import save_ds_image
+        save_ds_image(pl_datamodule)
 
 
     #############################################################################################################
@@ -71,7 +56,7 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "GAN_NIR" 
+    wandb_project = "px2px" 
     wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers
@@ -104,7 +89,7 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[0],
+                    devices=[3],
                     strategy="ddp",
                     check_val_every_n_epoch=1,
                     val_check_interval=1.,

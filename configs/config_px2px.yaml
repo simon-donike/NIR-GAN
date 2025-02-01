@@ -1,7 +1,5 @@
 base_configs:
   direction: "AtoB"
-  gpu_ids:
-    - 0
   isTrain: true
   checkpoints_dir: "logs/checkpoints_px"
   full_key: null
@@ -21,5 +19,25 @@ base_configs:
   gan_mode: "lsgan"
   lr: 0.0002
   beta1: 0.5
+  lambda_L1: 100.0
+
 custom_configs:
+  Logging:
+    num_val_images: 5
+  Model:
+    load_checkpoint: False
+    ckpt_path: ""
+
+Data:
+  train_batch_size: 5
+  val_batch_size: 5
+  num_workers: 4
   normalize: False
+
+  # Detailed Dataset Setttings
+  dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
+  data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
+  spectral_matching: "none" #'histogram'
+  sen2naip_settings:
+    base_path: "/data2/simon/"
+    dataset_type: "synthetic2"

@@ -20,6 +20,10 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 3, figsize=(15, 5 * num_images_to_plot))
 
+    # If only one image to plot, convert axes to a 2D array format
+    if num_images_to_plot == 1:
+        axes = np.expand_dims(axes, 0)  # Make it 2D
+
     # plot images
     for i in range(num_images_to_plot):
         # Extract the i-th RGB and NIR images

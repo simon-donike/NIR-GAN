@@ -23,7 +23,7 @@ class Px2Px_PL(pl.LightningModule):
         self.model = Pix2PixModel(self.config)
 
         # set setings
-        self.normalize = self.config.custom_configs.normalize
+        self.normalize = self.config.Data.normalize
         
 
     def forward(self, input):
@@ -32,12 +32,11 @@ class Px2Px_PL(pl.LightningModule):
         return pred
 
     @torch.no_grad()
-    def predict_step(self, rgb, normalize=False):
+    def predict_step(self, rgb):
         #if self.training:
         #    self.model = self.model.eval()
         #assert not self.training, "Model should be in eval mode for predictions"
-        rgb = rgb.to(self.device)
-        if normalize:
+        if self.normalize:
             from utils.normalise_s2 import normalize_rgb, normalize_nir
             rgb_norm = normalize_rgb(rgb, stage="norm")
             nir_pred = self.model.netG(rgb_norm)
@@ -51,26 +50,34 @@ class Px2Px_PL(pl.LightningModule):
         if self.normalize:
             rgb = normalize_rgb(rgb, stage="norm")
             nir = normalize_nir(nir, stage="norm")
-        nir_pred = self.generator(rgb)
 
-        # Generator Step
+        # TODO: make this be ran only once per training step
+        pred = self.model.netG(rgb)
+
+        # 1. Backward_G
         if optimizer_idx == 1:
-
-            content_loss = self.L1_loss(nir_pred, nir)
-            fake_disc = self.discriminator(nir_pred).squeeze()
-            adv_loss = self.BCE_loss(fake_disc, torch.ones_like(fake_disc))
-            loss = content_loss + self.config.Losses.adv_loss_beta * adv_loss
-            self.log("generator_loss", loss)
-            return loss
+            # 1.1 emulate backward_D
+            # 1.1.1 Fake
+            fake_AB = torch.cat((rgb, pred), 1)
+            pred_fake = self.model.netD(fake_AB.detach())
+            loss_D_fake = self.model.criterionGAN(pred_fake, False)
+            # 1.1.2 Real
+            real_AB = torch.cat((rgb, nir), 1)
+            pred_real = self.model.netD(real_AB)
+            loss_D_real = self.model.criterionGAN(pred_real, True)
+            loss_D = (loss_D_fake + loss_D_real) * 0.5
+            self.log("generator_loss", loss_D)
+            return loss_D
 
         # Discriminator Step
         if optimizer_idx == 0:
-            fake_disc = self.discriminator(nir_pred).squeeze()
-            real_dic = self.discriminator(nir).squeeze()
-            fake_loss = self.BCE_loss(fake_disc,torch.zeros_like(fake_disc))
-            real_loss = self.BCE_loss(real_dic,torch.ones_like(real_dic))
-            disc_loss = (real_loss + fake_loss) / 2
-            return disc_loss
+            fake_AB = torch.cat((rgb, pred), 1)
+            pred_fake = self.model.netD(fake_AB)
+            loss_G_GAN = self.model.criterionGAN(pred_fake, True)
+            loss_G_L1 = self.model.criterionL1(pred, nir) * self.config.base_configs.lambda_L1
+            loss_G = loss_G_GAN + loss_G_L1
+            self.log("discriminator_loss", loss_G)
+            return loss_G
         
     @torch.no_grad()
     def validation_step(self,batch,batch_idx):
@@ -79,7 +86,7 @@ class Px2Px_PL(pl.LightningModule):
         rgb,nir = self.extract_batch(batch)
                         
         # Predict, returns denormed NIR
-        nir_pred = self.predict_step(rgb,normalize=True)
+        nir_pred = self.predict_step(rgb)
 
         """ 2. Log Generator Metrics """
         # log image metrics        
@@ -87,28 +94,17 @@ class Px2Px_PL(pl.LightningModule):
         self.log_dict(metrics,on_step=False,on_epoch=True,sync_dist=True)
 
         # only perform image logging for n pics, not all 200
-        if batch_idx<self.config.Logging.num_val_images:
-            # log Stadard image visualizations, deep copy to avoid graph problems
-            val_img = plot_tensors(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
-            ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
-            self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
-            self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
-            self.log_dict({"pred_stats/min":torch.min(torch.clone(nir_pred)).item(), # log stats
-                           "pred_stats/max":torch.max(torch.clone(nir_pred)).item(),
-                           "pred_stats/mean":torch.min(torch.clone(nir_pred)).item()},
-                           on_epoch=True,sync_dist=True)
-           
-        """ 3. Log Discriminator metrics """
-        # run discriminator and get loss between pred labels and true labels
-        nir_discriminated = self.discriminator(nir)
-        pred_discriminated = self.discriminator(nir_pred)
-        adversarial_loss = self.BCE_loss(pred_discriminated, torch.ones_like(nir_discriminated))
-
-        # Binary Cross-Entropy loss
-        adversarial_loss = self.BCE_loss(pred_discriminated,
-                                            torch.zeros_like(pred_discriminated)) + self.BCE_loss(nir_discriminated,
-                                            torch.ones_like(nir_discriminated))
-        self.log("val/Disc_adversarial_loss",adversarial_loss,sync_dist=True)
+        if batch_idx<self.config.custom_configs.Logging.num_val_images:
+            if self.logger and hasattr(self.logger, 'experiment'):
+                # log Stadard image visualizations, deep copy to avoid graph problems
+                val_img = plot_tensors(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
+                self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
+                self.log_dict({"pred_stats/min":torch.min(torch.clone(nir_pred)).item(), # log stats
+                            "pred_stats/max":torch.max(torch.clone(nir_pred)).item(),
+                            "pred_stats/mean":torch.min(torch.clone(nir_pred)).item()},
+                            on_epoch=True,sync_dist=True)
 
     def configure_optimizers(self):
         optim_g = self.model.optimizer_G
@@ -129,7 +125,17 @@ if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px.yaml")
     m = Px2Px_PL(config)
 
-    # try out
-    a = torch.rand(1,3,512,512)
-    pred = m.predict_step(a)
-    
+    # try out simple forward
+    rgb = torch.rand(5,3,512,512)
+    nir = torch.rand(5,1,512,512)
+    pred= m.predict_step(rgb)
+
+    m = m.cpu()
+    # try out training step
+    batch = {"rgb":rgb, "nir":nir}
+    m.training_step(batch, batch_idx=0, optimizer_idx=1)
+    m.validation_step(batch, batch_idx=0)
+
+
+
+

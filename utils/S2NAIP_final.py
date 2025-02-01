@@ -70,7 +70,7 @@ class SEN2NAIPv2(Dataset):
         #random_number = np.random.rand()
         #if random_number>0.85:
         #    pass     
-        return {"rgb": lr[:3,:,:], "nir": lr[3:,:,:]}
+        return {"rgb": hr[:3,:,:], "nir": hr[3:,:,:]}
 
     def get_data(self,datapoint):
         data_bytes = mlstac.get_data(dataset=datapoint,
