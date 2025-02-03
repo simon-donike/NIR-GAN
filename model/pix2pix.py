@@ -6,7 +6,7 @@ import wandb
 from utils.normalise_s2 import normalize_rgb
 from utils.normalise_s2 import normalize_nir
 from utils.calculate_metrics import calculate_metrics
-from utils.logging_helpers import plot_tensors
+from utils.logging_helpers import plot_tensors_hist
 from utils.logging_helpers import plot_ndvi
 from model.pix2pix_model import Pix2PixModel
 from model.base_model import BaseModel
@@ -14,22 +14,6 @@ from model import networks
 
 
 class Px2Px_PL(pl.LightningModule):
-    """
-    def __init__(self, config_dict="configs/config_px2px.yaml"):
-        super().__init__()
-        # Load configuration
-        if isinstance(config_dict, str):
-            self.config = OmegaConf.load(config_dict)
-        else:
-            self.config = config_dict
-            
-        # load Px2Px configs
-        self.model = Pix2PixModel(self.config)
-
-        # set setings
-        self.normalize = self.config.Data.normalize
-    """
-        
     def __init__(self, opt):
         super(Px2Px_PL, self).__init__()  # Initialize the base class first
         self.opt = opt.base_configs
@@ -89,12 +73,13 @@ class Px2Px_PL(pl.LightningModule):
         else:
             pred = self.netG(rgb)
 
+        if optimizer_idx == 0 and batch_idx % 10 == 0:
+            metrics = calculate_metrics(pred=torch.clone(pred).cpu(),target=torch.clone(nir).cpu(),phase="train")
+            self.log_dict(metrics,on_step=True,sync_dist=True)
 
-        # 1. Backward_G
-        # TODO: This seems the wring way around. Veryfiy order
-        # TODO: Log metrics such as L1 and stuff at every step
-        if optimizer_idx == 1:
-            # 1.1 emulate backward_D
+
+        # Discriminator Step
+        if optimizer_idx == 0:
             # 1.1.1 Fake
             fake_AB = torch.cat((rgb, pred), 1)
             pred_fake = self.netD(fake_AB)
@@ -104,17 +89,17 @@ class Px2Px_PL(pl.LightningModule):
             pred_real = self.netD(real_AB)
             loss_D_real = self.criterionGAN(pred_real, True)
             loss_D = (loss_D_fake + loss_D_real) * 0.5
-            self.log("generator_loss", loss_D)
+            self.log("discriminator_loss", loss_D)
             return loss_D
 
-        # Discriminator Step
-        if optimizer_idx == 0:
+        # Generator Step
+        if optimizer_idx == 1:
             fake_AB = torch.cat((rgb, pred), 1)
             pred_fake = self.netD(fake_AB)
             loss_G_GAN = self.criterionGAN(pred_fake, True)
             loss_G_L1 = self.criterionL1(pred, nir) * self.config.base_configs.lambda_L1
             loss_G = loss_G_GAN + loss_G_L1
-            self.log("discriminator_loss", loss_G)
+            self.log("generator_loss", loss_G)
             return loss_G
         
     @torch.no_grad()
@@ -135,13 +120,17 @@ class Px2Px_PL(pl.LightningModule):
         if batch_idx<self.config.custom_configs.Logging.num_val_images:
             if self.logger and hasattr(self.logger, 'experiment'):
                 # log Stadard image visualizations, deep copy to avoid graph problems
-                val_img = plot_tensors(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                val_img = plot_tensors_hist(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
                 self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
-                self.log_dict({"pred_stats/min":torch.min(torch.clone(nir_pred)).item(), # log stats
-                            "pred_stats/max":torch.max(torch.clone(nir_pred)).item(),
-                            "pred_stats/mean":torch.min(torch.clone(nir_pred)).item()},
+                self.log_dict({"val_stats/min_pred":torch.min(nir_pred).item(), # log stats
+                            "val_stats/max_pred":torch.max(nir_pred).item(),
+                            "val_stats/mean_pred":torch.mean(nir_pred).item()},
+                            on_epoch=True,sync_dist=True)
+                self.log_dict({"val_stats/min_input":torch.min(nir).item(), # log stats
+                            "val_stats/max_input":torch.max(nir).item(),
+                            "val_stats/mean_input":torch.mean(nir).item()},
                             on_epoch=True,sync_dist=True)
                 
     def extract_batch(self, batch):

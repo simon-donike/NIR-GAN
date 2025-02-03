@@ -25,13 +25,14 @@ custom_configs:
   Logging:
     num_val_images: 1
   Model:
-    load_checkpoint: False
-    ckpt_path: ""
-
+    load_checkpoint: True # Continue PL-Style
+    ckpt_path: "logs/NIR_GAN/2025-02-02_21-06-48/last.ckpt"
+    load_weights_only: False # Load ckpt file only
+    weights_path: ""
 Schedulers:
-  metric: 'discriminator_loss'
-  patience_g: 15
-  patience_d: 15
+  metric: 'val/L1'
+  patience_g: 50
+  patience_d: 50
   factor_g: 0.25
   factor_d: 0.25
   verbose: True

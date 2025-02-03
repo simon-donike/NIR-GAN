@@ -29,9 +29,16 @@ if __name__ == '__main__':
     model = Px2Px_PL(config)
 
     # set reload checkpoint settings for trainer
+    if config.custom_configs.Model.load_weights_only==True:
+        ckpt = config.custom_configs.Model.weights_path
+        ckpt = torch.load(ckpt)
+        model.load_state_dict(ckpt['state_dict'])
+        print("Loaded (only) Weights from:",config.custom_configs.Model.weights_path)
+
     resume_from_checkpoint=None
     if config.custom_configs.Model.load_checkpoint==True:
         resume_from_checkpoint=config.custom_configs.Model.ckpt_path
+        print("Resuming from checkpoint PL-style:",resume_from_checkpoint)
 
     #############################################################################################################
     """ GET DATA """
@@ -88,7 +95,7 @@ if __name__ == '__main__':
     trainer = Trainer(accelerator='cuda',
                     devices=[0,1,2,3],
                     strategy="ddp",
-                    check_val_every_n_epoch=10,
+                    check_val_every_n_epoch=1,
                     #val_check_interval=1.,
                     limit_val_batches=20,
                     max_epochs=99999,
