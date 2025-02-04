@@ -2,11 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
-import torchvision.transforms as transforms
-from utils.sen2_stretch import sen2_stretch
-from utils.normalise_s2 import normalise_s2
 from utils.normalise_s2 import minmax_percentile
-import skimage
 import numpy as np
 
 
@@ -72,6 +68,7 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
     rgb = rgb.clamp(0, 1)
     nir = nir.clamp(0, 1)
     pred_nir = pred_nir.clamp(0, 1)
+    rgb = minmax_percentile(rgb,perc=2)
 
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 4, figsize=(20, 5 * num_images_to_plot))  # Changed to 4 columns
@@ -85,13 +82,12 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
         pred_nir_image = pred_nir[i][0].cpu().numpy()
 
         axes[i, 0].imshow(rgb_image)
-        axes[i, 1].imshow(nir_image, cmap='gray')
-        axes[i, 2].imshow(pred_nir_image, cmap='gray')
+        axes[i, 1].imshow(nir_image, cmap='viridis')
+        axes[i, 2].imshow(pred_nir_image, cmap='viridis')
 
         # Histogram for real NIR
         bins_num = 100
         total_pixels = nir_image.size  # Total number of pixels in the image
-
         vals_nir = np.histogram(nir_image.ravel(), bins=bins_num, range=(0, 1))[0]
         vals_pred = np.histogram(pred_nir_image.ravel(), bins=bins_num, range=(0, 1))[0]
         vals_nir_percentage = (vals_nir / total_pixels) 
@@ -101,7 +97,6 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
         axes[i, 3].plot(bin_centers, vals_nir_percentage, color='blue')
         axes[i, 3].plot(bin_centers, vals_pred_percentage, color='red')
         #axes[i, 3].set_xlim([0, 1])
-        axes[i, 3].set_title('Histogram')
         axes[i, 3].legend(['Real NIR', 'Predicted NIR'])
         axes[i, 3].set_xlabel('Pixel Intensity')
         axes[i, 3].set_ylabel('Value Frequency')
@@ -109,7 +104,7 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
             axes[i, 0].set_title('RGB Image')
             axes[i, 1].set_title('NIR Image')
             axes[i, 2].set_title('Predicted NIR Image')
-            axes[i, 2].set_title('NIR/ predNIR Histogram')
+            axes[i, 3].set_title('NIR/ predNIR Histogram')
 
     plt.tight_layout()
     buf = io.BytesIO()

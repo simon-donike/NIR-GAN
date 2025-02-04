@@ -7,6 +7,8 @@ from io import BytesIO
 import numpy as np
 import h5py
 import pytorch_lightning as pl
+from albumentations import Compose, HorizontalFlip, RandomRotate90, ShiftScaleRotate
+from albumentations.pytorch import ToTensorV2
 
 
 # Define your dataset class
@@ -39,6 +41,10 @@ class SEN2NAIPv2(Dataset):
             elif phase=="test":
                 self.dataset.metadata = test
         self.phase=phase
+        
+        # set padding settings
+        if self.config.Data.padding:
+            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
 
         print("Instanciated SEN2NAIPv2 dataset with",len(self.dataset.metadata),"datapoints for",phase)
 
@@ -66,12 +72,51 @@ class SEN2NAIPv2(Dataset):
         lr = lr/10000.
         hr = hr/10000.
         
-        # get random number between 0 and 1
-        #random_number = np.random.rand()
-        #if random_number>0.85:
-        #    pass     
-        return {"rgb": hr[:3,:,:], "nir": hr[3:,:,:]}
+        rgb = hr[:3,:,:]
+        nir = hr[3,:,:]
+        
+        # apply augmentation
+        if self.phase in ["train","validation"]:
+            nir = nir.unsqueeze(0)
+            rgb,nir = self.augment_images(rgb.numpy(),nir.numpy())
+            rgb = torch.tensor(rgb).float()
+            nir = torch.tensor(nir).float().squeeze(0)
+            
+        # apply padding
+        if self.config.Data.padding:
+            rgb = self.pad(rgb)
+            nir = self.pad(nir.unsqueeze(0)).squeeze(0)
+            
+        if len(nir.shape)==2:
+            nir = nir.unsqueeze(0)
+        return {"rgb":rgb, "nir": nir}
 
+    def augment_images(self,rgb,nir):
+        # 1. value stretch
+        if np.random.randint(0,100) > 50:
+            m_value = np.random.uniform(0.85,1.15)
+            rgb,nir = rgb*m_value,nir*m_value
+
+        # 2. flip
+        if np.random.randint(0,100) > 0:
+            rgb,nir = np.flip(rgb,axis=(1,2)),np.flip(nir,axis=(1,2))
+
+        # 3. rotate - 3 times 90 degrees for all possible rotations
+        rotation_count = np.random.choice([0, 1, 2, 3])  # Choose how many 90-degree rotations to apply
+        if rotation_count > 0:
+            rgb = np.rot90(rgb, k=rotation_count,axes=(1,2))
+            nir = np.rot90(nir, k=rotation_count,axes=(1,2))
+            
+        # 4. Add noise
+        if np.random.randint(0,100) > 101:
+            noise_level = np.random.uniform(0.0,0.001)
+            noise = np.random.normal(0, noise_level, rgb.shape)
+            rgb = np.clip(rgb + noise, 0, 1)
+
+        # final clean up
+        rgb,nir = rgb.clip(0,1),nir.clip(0,1)        
+        return rgb,nir
+        
     def get_data(self,datapoint):
         data_bytes = mlstac.get_data(dataset=datapoint,
             backend="bytes",
@@ -87,7 +132,6 @@ class SEN2NAIPv2(Dataset):
         hr1 = hr1.astype(np.float32)
 
         return(lr1,hr1)
-    
 
 
 class S2NAIP_dm(pl.LightningDataModule):
@@ -109,10 +153,11 @@ class S2NAIP_dm(pl.LightningDataModule):
 
 
 
-
-
 if __name__ == "__main__":
     from omegaconf import OmegaConf
-    config = OmegaConf.load("configs/config_NIR.yaml")
+    config = OmegaConf.load("configs/config_px2px.yaml")
     pl_datamodule = S2NAIP_dm(config)
 
+    b = pl_datamodule.dataset_train[1]
+    rgb,nir = b["rgb"],b["nir"]
+    

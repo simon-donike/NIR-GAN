@@ -14,9 +14,10 @@ import pytorch_lightning as pl
 
 # Step 2: Custom Dataset Class
 class S2NAIP_v4(Dataset):
-    def __init__(self, csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
-                 phase="train",chip_size=256):
+    def __init__(self, config, csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
+                 phase="train",chip_size=512):
         assert phase in ["train","test","val"]
+        self.config = config
         self.phase = phase
         self.chip_size=chip_size
 
@@ -35,6 +36,10 @@ class S2NAIP_v4(Dataset):
         if self.phase=="test" or self.phase=="val":
             # list all files in input directory
             self.val_files_list = os.listdir(os.path.join(self.lr_input_path,"none"))
+            
+        # set padding settings
+        if self.config.Data.padding:
+            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
 
 
     def __len__(self):
@@ -44,39 +49,6 @@ class S2NAIP_v4(Dataset):
         # if train, do dataframe
         return len(self.dataframe)
 
-    
-    def apply_augmentations(self,lr,hr):
-        lr,hr = lr.float(),hr.float()
-
-        # set probabilities
-        smoothen_liklelihood   = 0.0 # 0.75
-        jitter_liklelihood     = 0.0 # 0.75
-        black_spots_likelihood = 0.0
-
-        # get random numbers
-        smoothen_rand = random.uniform(0, 1)
-        jitter_rand = random.uniform(0, 1)
-        black_spots_rand = random.uniform(0, 1)
-
-        # perform smoothen
-        if smoothen_rand<smoothen_liklelihood:
-            # Define Kernel
-            sigma_rand = random.uniform(0.65, 1.2)
-            gaussian_blur = transforms.GaussianBlur(kernel_size=5, sigma=sigma_rand)
-            # Apply the blur to the image tensor
-            band_ls = []
-            for band in lr:
-                band = torch.unsqueeze(band,0)
-                band = gaussian_blur(band)
-                band = torch.squeeze(band,0)
-                band_ls.append(band)
-            lr = torch.stack(band_ls)
-        
-        if black_spots_rand<black_spots_likelihood:
-            lr = self.add_black_spots(lr)
-            
-                
-        return(lr,hr)
     
     def __getitem__(self, idx):
         """
@@ -113,9 +85,54 @@ class S2NAIP_v4(Dataset):
         if hr_image.max()>10:
             hr_image = hr_image/10000
             
+            
+        rgb = hr_image[:3,:self.chip_size,:self.chip_size]
+        nir = hr_image[3:,:self.chip_size,:self.chip_size]
+        
+        # apply a
+        if self.phase in ["train","validation"]:
+            nir = nir.unsqueeze(0)
+            rgb,nir = self.augment_images(rgb.numpy(),nir.numpy())
+            rgb = torch.tensor(rgb).float()
+            nir = torch.tensor(nir).float().squeeze(0)
+            
+        # apply padding
+        if self.config.Data.padding:
+            rgb = self.pad(rgb)
+            nir = self.pad(nir.unsqueeze(0)).squeeze(0)
+            
+        if len(nir.shape)==2:
+            nir = nir.unsqueeze(0)
+            
         # return images
         return {"rgb":hr_image[:3,:self.chip_size,:self.chip_size],
                 "nir":hr_image[3:,:self.chip_size,:self.chip_size]}
+
+    def augment_images(self,rgb,nir):
+        # 1. value stretch
+        if np.random.randint(0,100) > 50:
+            m_value = np.random.uniform(0.85,1.15)
+            rgb,nir = rgb*m_value,nir*m_value
+
+        # 2. flip
+        if np.random.randint(0,100) > 0:
+            rgb,nir = np.flip(rgb,axis=(1,2)),np.flip(nir,axis=(1,2))
+
+        # 3. rotate - 3 times 90 degrees for all possible rotations
+        rotation_count = np.random.choice([0, 1, 2, 3])  # Choose how many 90-degree rotations to apply
+        if rotation_count > 0:
+            rgb = np.rot90(rgb, k=rotation_count,axes=(1,2))
+            nir = np.rot90(nir, k=rotation_count,axes=(1,2))
+            
+        # 4. Add noise
+        if np.random.randint(0,100) > 101:
+            noise_level = np.random.uniform(0.0,0.001)
+            noise = np.random.normal(0, noise_level, rgb.shape)
+            rgb = np.clip(rgb + noise, 0, 1)
+
+        # final clean up
+        rgb,nir = rgb.clip(0,1),nir.clip(0,1)        
+        return rgb,nir
 
 
 
@@ -130,12 +147,14 @@ class SEN2NAIP_datamodule(pl.LightningDataModule):
         self.num_workers = config.Data.num_workers
         self.config = config
         # Initialize the dataset
-        self.dataset_train = S2NAIP_v4(phase="test",
+        self.dataset_train = S2NAIP_v4(config=config,
+                                       phase="test",
                                        csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
-                                       chip_size=256)
-        self.dataset_val = S2NAIP_v4(phase="val",
+                                       chip_size=512)
+        self.dataset_val = S2NAIP_v4(config=config,
+                                     phase="val",
                                      csv_path="/data3/landcover_s2naip/csvs/train_metadata_landcover.csv",
-                                     chip_size=256)
+                                     chip_size=512)
         
 
     def train_dataloader(self):        
@@ -145,3 +164,15 @@ class SEN2NAIP_datamodule(pl.LightningDataModule):
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
                           shuffle=True, num_workers=self.num_workers,drop_last=True)
+        
+
+
+if __name__ == "__main__":
+    from omegaconf import OmegaConf
+    config = OmegaConf.load("configs/config_px2px.yaml")
+    ds = S2NAIP_v4(config)
+    pl_datamodule = SEN2NAIP_datamodule(config)
+
+    b = pl_datamodule.dataset_train[1]
+    rgb,nir = b["rgb"],b["nir"]
+    

@@ -26,7 +26,7 @@ custom_configs:
     num_val_images: 1
   Model:
     load_checkpoint: True # Continue PL-Style
-    ckpt_path: "logs/NIR_GAN/2025-02-02_21-06-48/last.ckpt"
+    ckpt_path: "logs/NIR_GAN/2025-02-03_11-58-08/last.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: ""
 Schedulers:
@@ -44,6 +44,9 @@ Data:
   num_workers: 8
   normalize: False
   prefetch_factor: 2
+
+  padding: True
+  padding_amount: 4
 
   # Detailed Dataset Setttings
   dataset_type: 'S2NAIP' # ['cv', 'SPOT6']

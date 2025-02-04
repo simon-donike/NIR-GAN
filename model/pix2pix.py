@@ -3,8 +3,6 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
 import wandb
-from utils.normalise_s2 import normalize_rgb
-from utils.normalise_s2 import normalize_nir
 from utils.calculate_metrics import calculate_metrics
 from utils.logging_helpers import plot_tensors_hist
 from utils.logging_helpers import plot_ndvi
@@ -40,23 +38,13 @@ class Px2Px_PL(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, rgb):
-        #if self.training:
-        #    self.model = self.model.eval()
-        #assert not self.training, "Model should be in eval mode for predictions"
-        if self.config.Data.normalize:
-            from utils.normalise_s2 import normalize_rgb, normalize_nir
-            rgb_norm = normalize_rgb(rgb, stage="norm")
-            nir_pred = self.netG(rgb_norm)
-            return normalize_nir(nir_pred, stage="denorm")
-        else:
-            nir_pred = self.netG(rgb)
-            return nir_pred
+        assert self.training == False, "Model is in training mode, set to eval mode before predicting"
+        nir_pred = self.forward(rgb)
+        return nir_pred
 
     def training_step(self, batch, batch_idx, optimizer_idx):
+        assert self.training == True, "Model is in eval mode, set to training mode before training"
         rgb, nir = self.extract_batch(batch)
-        if self.config.Data.normalize:
-            rgb = normalize_rgb(rgb, stage="norm")
-            nir = normalize_nir(nir, stage="norm")
 
         # check for OPtimization regarding multiple pred steps in 1 training step
         # TODO: get optimization to work with cache, keep gradients intact
@@ -64,19 +52,18 @@ class Px2Px_PL(pl.LightningModule):
         if use_optimization:
             # If Cache is empty, run prediction and save cache
             if self.pred_cache is None:
-                pred = self.netG(rgb)
+                pred = self.forward(rgb)
                 self.pred_cache = pred
-                print("Cache is empty, running prediction")
+            # if something is cached, read cache
             else:
                 pred = self.pred_cache
-                print("Cache is not empty, using cache")
+                self.cache = None
         else:
-            pred = self.netG(rgb)
+            pred = self.forward(rgb)
 
         if optimizer_idx == 0 and batch_idx % 10 == 0:
             metrics = calculate_metrics(pred=torch.clone(pred).cpu(),target=torch.clone(nir).cpu(),phase="train")
             self.log_dict(metrics,on_step=True,sync_dist=True)
-
 
         # Discriminator Step
         if optimizer_idx == 0:
@@ -89,7 +76,7 @@ class Px2Px_PL(pl.LightningModule):
             pred_real = self.netD(real_AB)
             loss_D_real = self.criterionGAN(pred_real, True)
             loss_D = (loss_D_fake + loss_D_real) * 0.5
-            self.log("discriminator_loss", loss_D)
+            self.log("model_loss/discriminator_loss", loss_D)
             return loss_D
 
         # Generator Step
@@ -99,7 +86,9 @@ class Px2Px_PL(pl.LightningModule):
             loss_G_GAN = self.criterionGAN(pred_fake, True)
             loss_G_L1 = self.criterionL1(pred, nir) * self.config.base_configs.lambda_L1
             loss_G = loss_G_GAN + loss_G_L1
-            self.log("generator_loss", loss_G)
+            self.log("model_loss/generator_GAN_loss", loss_G_GAN)
+            self.log("model_loss/generator_L1", loss_G_L1)
+            self.log("model_loss/generator_total_loss", loss_G)
             return loss_G
         
     @torch.no_grad()
@@ -149,6 +138,7 @@ class Px2Px_PL(pl.LightningModule):
     
     
 
+# Testing
 if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px.yaml")
     m = Px2Px_PL(config)
@@ -156,13 +146,17 @@ if __name__ == "__main__":
     # try out simple forward
     rgb = torch.rand(5,3,512,512)
     nir = torch.rand(5,1,512,512)
-    pred= m.predict_step(rgb)
-
     m = m.cpu()
+
+    m = m.eval()
+    pred= m.predict_step(rgb)
+    m = m.train()
+
     # try out training step
     batch = {"rgb":rgb, "nir":nir}
     m.training_step(batch, batch_idx=0, optimizer_idx=1)
     m.validation_step(batch, batch_idx=0)
+    
 
 
 
