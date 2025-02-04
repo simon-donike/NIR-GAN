@@ -13,7 +13,7 @@ from model import networks
 
 class Px2Px_PL(pl.LightningModule):
     def __init__(self, opt):
-        super(Px2Px_PL, self).__init__()  # Initialize the base class first
+        super(Px2Px_PL, self).__init__()
         self.opt = opt.base_configs
         self.config = opt
         self.isTrain = self.opt.isTrain
@@ -26,7 +26,19 @@ class Px2Px_PL(pl.LightningModule):
                                           self.opt.n_layers_D, self.opt.norm, self.opt.init_type, self.opt.init_gain)
         self.criterionGAN = networks.GANLoss(self.opt.gan_mode)
         self.criterionL1 = torch.nn.L1Loss()
-
+        
+    def on_train_start(self):
+        # runs before training, used to set buffer shapes for multi GPU training optimization
+        # get batch to see shapes
+        try:
+            sample_batch = next(iter(self.trainer.datamodule.train_dataloader()))
+        except AttributeError:
+            print("No datamodule found, using test batch")
+            sample_batch = torch.zeros(5,1,512,512)
+        _, nir = self.extract_batch(sample_batch) 
+        # set Cache - Important: Needs to be correct shape!
+        self.register_buffer("pred_cache", torch.zeros_like(nir))
+        
     def forward(self, input):
         pred = self.netG(input)
         return pred
@@ -46,18 +58,21 @@ class Px2Px_PL(pl.LightningModule):
         assert self.training == True, "Model is in eval mode, set to training mode before training"
         rgb, nir = self.extract_batch(batch)
 
-        # check for OPtimization regarding multiple pred steps in 1 training step
-        # TODO: get optimization to work with cache, keep gradients intact
-        use_optimization = False
-        if use_optimization:
-            # If Cache is empty, run prediction and save cache
-            if self.pred_cache is None:
+        # Checking if using optimization - (optim only available when training with PL):
+        # 1. Optimization enabled in Settings
+        # 2. Buffer exists and is registered as 'pred_cache'
+        using_optimization = self.config.base_configs.use_training_pred_optimization and "pred_cache" in dict(self.named_buffers())
+        # contiion to perform registering of prediction in order to do it once per training step
+        if using_optimization:
+            if optimizer_idx == 0 or torch.all(self.pred_cache == 0):
                 pred = self.forward(rgb)
-                self.pred_cache = pred
-            # if something is cached, read cache
-            else:
+                print("Step0: Buffer: ",self.pred_cache.mean())
+                self.pred_cache.copy_(pred)
+                print("Step0: Writing to buffer",self.pred_cache.mean())
+            if optimizer_idx == 1:
+                print("Step1: Reading from buffer:",self.pred_cache.mean())
                 pred = self.pred_cache
-                self.cache = None
+        # if not using optimization, just predict it again for optimizer 1
         else:
             pred = self.forward(rgb)
 
@@ -69,7 +84,7 @@ class Px2Px_PL(pl.LightningModule):
         if optimizer_idx == 0:
             # 1.1.1 Fake
             fake_AB = torch.cat((rgb, pred), 1)
-            pred_fake = self.netD(fake_AB)
+            pred_fake = self.netD(fake_AB.detach())
             loss_D_fake = self.criterionGAN(pred_fake, False)
             # 1.1.2 Real
             real_AB = torch.cat((rgb, nir), 1)
@@ -89,6 +104,13 @@ class Px2Px_PL(pl.LightningModule):
             self.log("model_loss/generator_GAN_loss", loss_G_GAN)
             self.log("model_loss/generator_L1", loss_G_L1)
             self.log("model_loss/generator_total_loss", loss_G)
+            
+            # if optimizing with registered buffer, oveerwrite buffer with empty tensor
+            if using_optimization:
+                #pass
+                self.pred_cache.detach_().zero_()
+                #print("Step1: Resetting Buffer",self.pred_cache.mean())
+            
             return loss_G
         
     @torch.no_grad()
@@ -101,9 +123,10 @@ class Px2Px_PL(pl.LightningModule):
         nir_pred = self.predict_step(rgb)
 
         """ 2. Log Generator Metrics """
-        # log image metrics        
-        metrics = calculate_metrics(pred=torch.clone(nir_pred).cpu(),target=torch.clone(nir).cpu(),phase="val")
-        self.log_dict(metrics,on_step=False,on_epoch=True,sync_dist=True)
+        # log image metrics     
+        if self.logger and hasattr(self.logger, 'experiment'):   
+            metrics = calculate_metrics(pred=torch.clone(nir_pred).cpu(),target=torch.clone(nir).cpu(),phase="val")
+            self.log_dict(metrics,on_step=False,on_epoch=True,sync_dist=True)
 
         # only perform image logging for n pics, not all 200
         if batch_idx<self.config.custom_configs.Logging.num_val_images:
@@ -142,20 +165,30 @@ class Px2Px_PL(pl.LightningModule):
 if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px.yaml")
     m = Px2Px_PL(config)
+    m.on_train_start()
 
     # try out simple forward
     rgb = torch.rand(5,3,512,512)
     nir = torch.rand(5,1,512,512)
     m = m.cpu()
-
-    m = m.eval()
-    pred= m.predict_step(rgb)
-    m = m.train()
-
+    
     # try out training step
-    batch = {"rgb":rgb, "nir":nir}
-    m.training_step(batch, batch_idx=0, optimizer_idx=1)
-    m.validation_step(batch, batch_idx=0)
+    def simulate_1_step():
+        # try out simple forward
+        rgb = torch.rand(5,3,512,512)
+        nir = torch.rand(5,1,512,512)
+        batch = {"rgb":rgb, "nir":nir}
+        l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
+        l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
+
+    from datetime import datetime
+    from tqdm import tqdm
+    start = datetime.now()
+    for i in tqdm(range(10)):
+        simulate_1_step()
+    print(datetime.now()-start)
+    
+    #m.validation_step(batch, batch_idx=0)
     
 
 

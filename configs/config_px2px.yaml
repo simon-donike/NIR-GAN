@@ -20,13 +20,14 @@ base_configs:
   lr: 0.0002
   beta1: 0.5
   lambda_L1: 100.0
+  use_training_pred_optimization: True
 
 custom_configs:
   Logging:
     num_val_images: 1
   Model:
     load_checkpoint: True # Continue PL-Style
-    ckpt_path: "logs/NIR_GAN/2025-02-03_11-58-08/last.ckpt"
+    ckpt_path: "logs/NIR_GAN/2025-02-04_12-02-41/last.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: ""
 Schedulers:
@@ -39,11 +40,12 @@ Schedulers:
   interval: 'epoch'
 
 Data:
-  train_batch_size: 32
-  val_batch_size: 5
-  num_workers: 8
   normalize: False
+  train_batch_size: 24
+  val_batch_size: 5
+  num_workers: 16
   prefetch_factor: 2
+  persistent_workers: True
 
   padding: True
   padding_amount: 4

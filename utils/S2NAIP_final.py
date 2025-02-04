@@ -145,11 +145,13 @@ class S2NAIP_dm(pl.LightningDataModule):
 
     def train_dataloader(self):        
         return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
-                          shuffle=True, num_workers=self.num_workers,prefetch_factor=self.config.Data.prefetch_factor,drop_last=True)
+                          shuffle=True, num_workers=self.num_workers,
+                          prefetch_factor=self.config.Data.prefetch_factor,drop_last=True,
+                          persistent_workers=self.config.Data.persistent_workers)
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.num_workers,drop_last=True)
+                          shuffle=True, num_workers=self.num_workers,drop_last=True,)
 
 
 
@@ -157,7 +159,58 @@ if __name__ == "__main__":
     from omegaconf import OmegaConf
     config = OmegaConf.load("configs/config_px2px.yaml")
     pl_datamodule = S2NAIP_dm(config)
-
     b = pl_datamodule.dataset_train[1]
     rgb,nir = b["rgb"],b["nir"]
     
+    
+    """
+    Ablation over DataLoader Settings
+    """    
+    import time
+    import torch
+    from omegaconf import OmegaConf
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+    def benchmark_dataloader(config, num_workers_list=[2, 4, 8, 16, 24, 32], prefetch_list=[2, 4, 6, 8]):
+        """ Benchmark DataLoader speed with different num_workers and prefetch settings """
+        
+        pl_datamodule = S2NAIP_dm(config)
+        dataset = pl_datamodule.dataset_train  # Assuming dataset_train is the dataset
+
+        batch_size = 24  # Load batch size from config
+
+        print(f"\n🚀 Benchmarking DataLoader for batch_size={batch_size}")
+        results = []
+
+        for num_workers in num_workers_list:
+            for prefetch_factor in prefetch_list:
+                # Initialize DataLoader with different settings
+                dataloader = DataLoader(
+                    dataset,
+                    batch_size=batch_size,
+                    num_workers=num_workers,
+                    prefetch_factor=prefetch_factor if num_workers > 0 else 0,
+                    persistent_workers=True if num_workers > 0 else False,
+                    pin_memory=True if torch.cuda.is_available() else False,
+                )
+
+                # Measure data loading speed
+                start_time = time.time()
+                num_batches = 250  # Measure over n batches
+                
+                for i, batch in enumerate(dataloader):
+                    if i >= num_batches:
+                        break  # Stop after measuring 10 batches
+                
+                end_time = time.time()
+                time_per_batch = (end_time - start_time) / num_batches
+                print(f"🟢 num_workers={num_workers}, prefetch_factor={prefetch_factor} → {time_per_batch:.4f} sec/batch")
+                results.append((num_workers, prefetch_factor, time_per_batch))
+
+        # Find best setting
+        best_config = min(results, key=lambda x: x[2])  # Min time per batch
+        print(f"\n🚀 Best setting: num_workers={best_config[0]}, prefetch_factor={best_config[1]} → {best_config[2]:.4f} sec/batch")
+        return best_config
+
+    # Run benchmark
+    best_setting = benchmark_dataloader(config)
