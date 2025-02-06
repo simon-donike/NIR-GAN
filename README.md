@@ -1,5 +1,5 @@
 # NIR-GAN: Synthetic NIR band from RGB Satellite Imagery
-![Sample Result](resources/banner.png)
+![Sample Result](resources/banner2.png)
 
 ## Overview
 NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB Sentinel-2 satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data in the S2 spectral domain is available.
