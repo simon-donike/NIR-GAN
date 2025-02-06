@@ -65,10 +65,24 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
 
 
 def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
+    # stretch images
+    if True:
+        nir = nir*2
+        pred_nir = pred_nir*2
+    
     rgb = rgb.clamp(0, 1)
     nir = nir.clamp(0, 1)
     pred_nir = pred_nir.clamp(0, 1)
     rgb = minmax_percentile(rgb,perc=2)
+    
+    # Crop Middle
+    B, C, H, W = rgb.shape
+    crop_height, crop_width = 500, 500
+    start_x = (W - crop_width) // 2
+    start_y = (H - crop_height) // 2
+    rgb = rgb[:,:, start_y:start_y+crop_height, start_x:start_x+crop_width]
+    nir = nir[:,:, start_y:start_y+crop_height, start_x:start_x+crop_width]
+    pred_nir = pred_nir[:,:, start_y:start_y+crop_height, start_x:start_x+crop_width]
 
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 4, figsize=(20, 5 * num_images_to_plot))  # Changed to 4 columns

@@ -93,7 +93,7 @@ class SEN2NAIPv2(Dataset):
 
     def augment_images(self,rgb,nir):
         # 1. value stretch
-        if np.random.randint(0,100) > 50:
+        if np.random.randint(0,100) > 101:
             m_value = np.random.uniform(0.85,1.15)
             rgb,nir = rgb*m_value,nir*m_value
 

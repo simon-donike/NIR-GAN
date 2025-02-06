@@ -28,16 +28,10 @@ The model is trained using low-resolution (10m) Sentinel-2 satellite imagery, sp
 
 ## Architecture
 
-The project now includes two GAN architectures, both designed for predicting a single NIR band from three input RGB bands:
-1. Modified SRResNet-based GAN:
-- This GAN is a modified SRResNet, specifically tailored for NIR prediction without any upscaling components.
-- **Generator**: Adapted from SRResNet to predict a single NIR band from RGB input, taking in 3 bands and outputting 1. This model includes approximately 25 million parameters, balancing complexity with efficient training.
-- **Discriminator**: A deep convolutional network that classifies synthetic NIR bands as real or fake, evaluating only the NIR band for quality. It takes in 1 band and outputs a classification score.
-
 2. Pix2Pix Conditional GAN:
-- The project also includes an implementation of a Pix2Pix conditional GAN with approximately 42 million parameters. This model could use conditional information (RGB input) to improve the quality of the generated NIR band, but currently doesnt.
-- **Generator**: The Pix2Pix generator uses an encoder-decoder architecture, leveraging conditional information from the RGB bands to enhance the synthetic NIR output.
-- **Discriminator**: The Pix2Pix discriminator is also conditional, accepting both the generated NIR band and the corresponding RGB input to evaluate the consistency between the RGB and synthetic NIR. This approach provides additional feedback, helping the model learn more accurate mappings from RGB to NIR.
+- The project features an implementation of the Pix2Pix conditional GAN with approximately 42 million parameters.
+- **Generator**: The Pix2Pix generator uses an resnet encoder-decoder architecture, leveraging conditional information from the RGB bands to enhance the synthetic NIR output.
+- **Discriminator**: The Pix2Pix discriminator accepts both the generated NIR band and the corresponding RGB input to evaluate the consistency between the RGB and synthetic NIR. This approach provides additional feedback, helping the model learn more accurate mappings from RGB to NIR.
 
 ### Installation
 

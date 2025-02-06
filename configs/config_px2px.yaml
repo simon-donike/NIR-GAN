@@ -19,7 +19,7 @@ base_configs:
   gan_mode: "lsgan"
   lr: 0.0002
   beta1: 0.5
-  lambda_L1: 100.0
+  lambda_L1: 10.0
   use_training_pred_optimization: True
 
 custom_configs:
@@ -34,8 +34,8 @@ Schedulers:
   metric: 'val/L1'
   patience_g: 50
   patience_d: 50
-  factor_g: 0.25
-  factor_d: 0.25
+  factor_g: 0.5
+  factor_d: 0.5
   verbose: True
   interval: 'epoch'
 

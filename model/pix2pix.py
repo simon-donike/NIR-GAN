@@ -91,6 +91,8 @@ class Px2Px_PL(pl.LightningModule):
             pred_real = self.netD(real_AB)
             loss_D_real = self.criterionGAN(pred_real, True)
             loss_D = (loss_D_fake + loss_D_real) * 0.5
+            self.log("model_loss/discriminator_real", loss_D_real)
+            self.log("model_loss/discriminator_fake", loss_D_fake)
             self.log("model_loss/discriminator_loss", loss_D)
             return loss_D
 
@@ -135,7 +137,9 @@ class Px2Px_PL(pl.LightningModule):
                 val_img = plot_tensors_hist(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
-                self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
+                if False:
+                    ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                    self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
                 self.log_dict({"val_stats/min_pred":torch.min(nir_pred).item(), # log stats
                             "val_stats/max_pred":torch.max(nir_pred).item(),
                             "val_stats/mean_pred":torch.mean(nir_pred).item()},
