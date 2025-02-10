@@ -47,6 +47,7 @@ if __name__ == '__main__':
     from utils.S2NAIP_final import S2NAIP_dm
     pl_datamodule = S2NAIP_dm(config)
     print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
+    print("Length of Val Dataloader:",len(pl_datamodule.val_dataloader())*config.Data.val_batch_size)
 
     # Do a test on model and adtaloader + visualzation
     test = False
@@ -97,7 +98,7 @@ if __name__ == '__main__':
                     strategy="ddp",
                     check_val_every_n_epoch=1,
                     #val_check_interval=1.,
-                    limit_val_batches=20,
+                    limit_val_batches=1000,
                     max_epochs=99999,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 

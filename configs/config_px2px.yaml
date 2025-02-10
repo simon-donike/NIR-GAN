@@ -1,7 +1,7 @@
 base_configs:
   direction: "AtoB"
   isTrain: true
-  checkpoints_dir: "logs/checkpoints_px"
+  #checkpoints_dir: "logs/checkpoints_px" # unused
   full_key: null
   name: "px"
   preprocess: null
@@ -23,7 +23,8 @@ base_configs:
   # Loss weights
   lambda_GAN: 1.0
   lambda_L1: 100.0
-  lambda_ssim: 0.0
+  lambda_ssim: 0.0 # make smodel not learn anything, leave 0
+  lambda_hist: 50.0
   use_training_pred_optimization: True
 
 custom_configs:
@@ -31,13 +32,14 @@ custom_configs:
     num_val_images: 1
   Model:
     load_checkpoint: False # Continue PL-Style
-    ckpt_path: "logs/NIR_GAN/2025-02-04_12-02-41/last.ckpt"
+    ckpt_path: ""
     load_weights_only: True # Load ckpt file only
-    weights_path: "logs/NIR_GAN/2025-02-04_12-02-41/last.ckpt"
+    weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
+
 Schedulers:
   metric: 'val/L1'
-  patience_g: 50
-  patience_d: 50
+  patience_g: 100
+  patience_d: 100
   factor_g: 0.5
   factor_d: 0.5
   verbose: True

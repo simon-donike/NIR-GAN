@@ -10,6 +10,8 @@ from model.pix2pix_model import Pix2PixModel
 from model.base_model import BaseModel
 from model import networks
 from utils.losses import ssim_loss
+from utils.losses import hist_loss
+
 
 
 class Px2Px_PL(pl.LightningModule):
@@ -109,11 +111,15 @@ class Px2Px_PL(pl.LightningModule):
             self.log("model_loss/generator_L1", loss_G_L1)
             loss_G_ssim = ssim_loss(pred, nir)
             self.log("model_loss/generator_ssim", loss_G_ssim)
+            loss_G_hist = hist_loss(pred, nir)
+            self.log("model_loss/generator_hist", loss_G_hist)
             # weight losses
             loss_G_GAN_weighted = loss_G_GAN * self.config.base_configs.lambda_GAN
             loss_G_L1_weighted = loss_G_L1 * self.config.base_configs.lambda_L1
             loss_G_ssim_weighted = loss_G_ssim * self.config.base_configs.lambda_ssim
-            loss_G = loss_G_GAN_weighted + loss_G_L1_weighted + loss_G_ssim_weighted
+            loss_G_hist_weighted = loss_G_hist * self.config.base_configs.lambda_hist
+            # final weighting
+            loss_G = loss_G_GAN_weighted + loss_G_L1_weighted + loss_G_ssim_weighted + loss_G_hist_weighted
             self.log("model_loss/generator_total_loss", loss_G)
             
             # if optimizing with registered buffer, oveerwrite buffer with empty tensor
@@ -136,7 +142,7 @@ class Px2Px_PL(pl.LightningModule):
             metrics = calculate_metrics(pred=torch.clone(nir_pred).cpu(),target=torch.clone(nir).cpu(),phase="val")
             self.log_dict(metrics,on_step=False,on_epoch=True,sync_dist=True)
 
-        # only perform image logging for n pics, not all 200
+        # only perform image logging for n pics, not all in val loader
         if batch_idx<self.config.custom_configs.Logging.num_val_images:
             if self.logger and hasattr(self.logger, 'experiment'):
                 # log Stadard image visualizations, deep copy to avoid graph problems
