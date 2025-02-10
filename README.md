@@ -29,7 +29,7 @@ The model is trained using low-resolution (10m) Sentinel-2 satellite imagery, sp
 ## Architecture
 
 2. Pix2Pix Conditional GAN:
-- The project features an implementation of the Pix2Pix conditional GAN with approximately 42 million parameters.
+- The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters.
 - **Generator**: The Pix2Pix generator uses an resnet encoder-decoder architecture, leveraging conditional information from the RGB bands to enhance the synthetic NIR output.
 - **Discriminator**: The Pix2Pix discriminator accepts both the generated NIR band and the corresponding RGB input to evaluate the consistency between the RGB and synthetic NIR. This approach provides additional feedback, helping the model learn more accurate mappings from RGB to NIR.
 

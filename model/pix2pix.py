@@ -9,6 +9,7 @@ from utils.logging_helpers import plot_ndvi
 from model.pix2pix_model import Pix2PixModel
 from model.base_model import BaseModel
 from model import networks
+from utils.losses import ssim_loss
 
 
 class Px2Px_PL(pl.LightningModule):
@@ -85,12 +86,14 @@ class Px2Px_PL(pl.LightningModule):
             # 1.1.1 Fake
             fake_AB = torch.cat((rgb, pred), 1)
             pred_fake = self.netD(fake_AB.detach())
+            self.log("model_loss/discriminator_predFake", pred_fake.mean())
             loss_D_fake = self.criterionGAN(pred_fake, False)
             # 1.1.2 Real
             real_AB = torch.cat((rgb, nir), 1)
             pred_real = self.netD(real_AB)
+            self.log("model_loss/discriminator_predReal", pred_real.mean())
             loss_D_real = self.criterionGAN(pred_real, True)
-            loss_D = (loss_D_fake + loss_D_real) * 0.5
+            loss_D = (loss_D_fake + loss_D_real)
             self.log("model_loss/discriminator_real", loss_D_real)
             self.log("model_loss/discriminator_fake", loss_D_fake)
             self.log("model_loss/discriminator_loss", loss_D)
@@ -101,18 +104,21 @@ class Px2Px_PL(pl.LightningModule):
             fake_AB = torch.cat((rgb, pred), 1)
             pred_fake = self.netD(fake_AB)
             loss_G_GAN = self.criterionGAN(pred_fake, True)
-            loss_G_L1 = self.criterionL1(pred, nir) * self.config.base_configs.lambda_L1
-            loss_G = loss_G_GAN + loss_G_L1
             self.log("model_loss/generator_GAN_loss", loss_G_GAN)
+            loss_G_L1 = self.criterionL1(pred, nir)
             self.log("model_loss/generator_L1", loss_G_L1)
+            loss_G_ssim = ssim_loss(pred, nir)
+            self.log("model_loss/generator_ssim", loss_G_ssim)
+            # weight losses
+            loss_G_GAN_weighted = loss_G_GAN * self.config.base_configs.lambda_GAN
+            loss_G_L1_weighted = loss_G_L1 * self.config.base_configs.lambda_L1
+            loss_G_ssim_weighted = loss_G_ssim * self.config.base_configs.lambda_ssim
+            loss_G = loss_G_GAN_weighted + loss_G_L1_weighted + loss_G_ssim_weighted
             self.log("model_loss/generator_total_loss", loss_G)
             
             # if optimizing with registered buffer, oveerwrite buffer with empty tensor
             if using_optimization:
-                #pass
-                self.pred_cache.detach_().zero_()
-                #print("Step1: Resetting Buffer",self.pred_cache.mean())
-            
+                self.pred_cache.detach_().zero_()            
             return loss_G
         
     @torch.no_grad()
@@ -163,8 +169,6 @@ class Px2Px_PL(pl.LightningModule):
                 [{'scheduler': sched_d, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'},
                  {'scheduler': sched_g, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'}])
     
-    
-
 # Testing
 if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px.yaml")

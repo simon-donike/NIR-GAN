@@ -67,8 +67,8 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
 def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
     # stretch images
     if True:
-        nir = nir*2
-        pred_nir = pred_nir*2
+        nir = nir*1.5
+        pred_nir = pred_nir*1.5
     
     rgb = rgb.clamp(0, 1)
     nir = nir.clamp(0, 1)

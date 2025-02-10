@@ -18,18 +18,22 @@ base_configs:
   n_layers_D: 3
   gan_mode: "lsgan"
   lr: 0.0002
-  beta1: 0.5
-  lambda_L1: 10.0
+  beta1: 0.5 # Adam optimizer beta1
+
+  # Loss weights
+  lambda_GAN: 1.0
+  lambda_L1: 100.0
+  lambda_ssim: 0.0
   use_training_pred_optimization: True
 
 custom_configs:
   Logging:
     num_val_images: 1
   Model:
-    load_checkpoint: True # Continue PL-Style
+    load_checkpoint: False # Continue PL-Style
     ckpt_path: "logs/NIR_GAN/2025-02-04_12-02-41/last.ckpt"
-    load_weights_only: False # Load ckpt file only
-    weights_path: ""
+    load_weights_only: True # Load ckpt file only
+    weights_path: "logs/NIR_GAN/2025-02-04_12-02-41/last.ckpt"
 Schedulers:
   metric: 'val/L1'
   patience_g: 50
@@ -48,7 +52,7 @@ Data:
   persistent_workers: True
 
   padding: True
-  padding_amount: 4
+  padding_amount: 10
 
   # Detailed Dataset Setttings
   dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
