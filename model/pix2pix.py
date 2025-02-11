@@ -55,6 +55,7 @@ class Px2Px_PL(pl.LightningModule):
     def predict_step(self, rgb):
         assert self.training == False, "Model is in training mode, set to eval mode before predicting"
         # handle padding
+        # trained model expectes 512 + 10 pads in each direction. Results might be worse without padding.
         if rgb.shape[-1]<= 512+2*self.opt.pad:
             rgb = torch.nn.functional.pad(rgb,(self.opt.pad,self.opt.pad,self.opt.pad,self.opt.pad),mode="reflect")
         if rgb.shape[-2]<= 512+2*self.opt.pad:
