@@ -21,19 +21,19 @@ base_configs:
   beta1: 0.5 # Adam optimizer beta1
 
   # Loss weights
-  lambda_GAN: 1.0
-  lambda_L1: 100.0
-  lambda_ssim: 0.0 # make smodel not learn anything, leave 0
-  lambda_hist: 50.0
+  lambda_GAN: 2.0 # orig:1
+  lambda_L1: 50.0 # orig: 100
+  lambda_ssim: 0.0 # untested
+  lambda_hist: 0.0
   use_training_pred_optimization: True
 
 custom_configs:
   Logging:
     num_val_images: 1
   Model:
-    load_checkpoint: False # Continue PL-Style
-    ckpt_path: ""
-    load_weights_only: True # Load ckpt file only
+    load_checkpoint: True # Continue PL-Style
+    ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN/2025-02-10_15-34-10/epoch=61-step=65100.ckpt"
+    load_weights_only: False # Load ckpt file only
     weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
 
 Schedulers:

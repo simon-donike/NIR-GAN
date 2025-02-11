@@ -23,6 +23,7 @@ def ssim_loss(img1, img2, window_size=11):
 
     # Compute SSIM
     loss = kornia.metrics.ssim(img1, img2, window_size).mean()
+    loss = 1 - loss  # SSIM returns similarity, so subtract from 1 to get loss
     return loss
 
 def hist_loss(image1, image2, bins=256):
