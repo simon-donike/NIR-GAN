@@ -60,7 +60,6 @@ def hist_loss(image1, image2, bins=256):
     return distance
 
 
-
 if __name__ == "__main__":
     a,b = torch.rand(1,1,512,512), torch.rand(1,1,512,512)+0.1
     l = ssim_loss(a,b)
@@ -68,5 +67,7 @@ if __name__ == "__main__":
     
     l2 = hist_loss(a,b)
     print("Hist Loss:", l2)
+    
+
 
 

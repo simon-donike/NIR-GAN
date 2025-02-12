@@ -21,11 +21,21 @@ base_configs:
   beta1: 0.5 # Adam optimizer beta1
 
   # Loss weights
-  lambda_GAN: 2.0 # orig:1
-  lambda_L1: 50.0 # orig: 100
+  lambda_GAN: 5.0 # orig:1
+  lambda_L1: 10.0 # orig: 100
   lambda_ssim: 0.0 # untested
   lambda_hist: 0.0
   use_training_pred_optimization: True
+
+  # RS indices weights
+  lambda_rs_losses: 0.0 # RS indices vs all others
+  internal_rs_loss_weights:  # RS metrics internal weights
+    lambda_ndvi: 0.2
+    lambda_ndwi: 0.2
+    lambda_evi: 0.2
+    lambda_savi: 0.2
+    lambda_msavi: 0.2
+    lambda_gndvi: 0.0
 
 custom_configs:
   Logging:

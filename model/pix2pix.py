@@ -56,10 +56,12 @@ class Px2Px_PL(pl.LightningModule):
         assert self.training == False, "Model is in training mode, set to eval mode before predicting"
         # handle padding
         # trained model expectes 512 + 10 pads in each direction. Results might be worse without padding.
-        if rgb.shape[-1]<= 512+2*self.opt.pad:
-            rgb = torch.nn.functional.pad(rgb,(self.opt.pad,self.opt.pad,self.opt.pad,self.opt.pad),mode="reflect")
-        if rgb.shape[-2]<= 512+2*self.opt.pad:
-            pass # TODO: implement cropping of middle if image is bigger
+        if False: # TODO: Fix the padding operations
+            pd_no = self.config.Data.padding_amount # extract padding number
+            if rgb.shape[-1]<= 512+2*pd_no:
+                rgb = torch.nn.functional.pad(rgb,(pd_no,pd_no,pd_no,pd_no),mode="reflect")
+            if rgb.shape[-1]<= 512+2*pd_no:
+                pass # TODO: implement cropping of middle if image is bigger
         nir_pred = self.forward(rgb)
         return nir_pred
 
