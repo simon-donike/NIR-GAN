@@ -13,7 +13,6 @@ from utils.losses import ssim_loss
 from utils.losses import hist_loss
 
 
-
 class Px2Px_PL(pl.LightningModule):
     def __init__(self, opt):
         super(Px2Px_PL, self).__init__()
@@ -29,6 +28,12 @@ class Px2Px_PL(pl.LightningModule):
                                           self.opt.n_layers_D, self.opt.norm, self.opt.init_type, self.opt.init_gain)
         self.criterionGAN = networks.GANLoss(self.opt.gan_mode)
         self.criterionL1 = torch.nn.L1Loss()
+        
+        # define remote sensing losses if enabled
+        if self.config.base_configs.lambda_rs_losses>0.0:
+            from utils.remote_sensing_indices import RemoteSensingIndices
+            crit = self.config.base_configs.rs_losses_criterium
+            self.rs_losses = RemoteSensingIndices(mode="loss",criterion=crit)
         
     def on_train_start(self):
         # runs before training, used to set buffer shapes for multi GPU training optimization
@@ -121,6 +126,13 @@ class Px2Px_PL(pl.LightningModule):
             self.log("model_loss/generator_ssim", loss_G_ssim)
             loss_G_hist = hist_loss(pred, nir)
             self.log("model_loss/generator_hist", loss_G_hist)
+            
+            # get remote sensing indices
+            if self.config.base_configs.lambda_rs_losses>0.0:
+                losses_rs_indices = self.rs_losses.get_and_weight_losses(rgb,nir,pred)
+                losses_rs_indices_weighted = losses_rs_indices * self.config.base_configs.lambda_rs_losses
+                self.log("model_loss/indices_loss_weighted", losses_rs_indices)
+                
             # weight losses
             loss_G_GAN_weighted = loss_G_GAN * self.config.base_configs.lambda_GAN
             loss_G_L1_weighted = loss_G_L1 * self.config.base_configs.lambda_L1
@@ -128,7 +140,10 @@ class Px2Px_PL(pl.LightningModule):
             loss_G_hist_weighted = loss_G_hist * self.config.base_configs.lambda_hist
             # final weighting
             loss_G = loss_G_GAN_weighted + loss_G_L1_weighted + loss_G_ssim_weighted + loss_G_hist_weighted
-            self.log("model_loss/generator_total_loss", loss_G)
+            if self.config.base_configs.lambda_rs_losses>0.0:
+                loss_G += losses_rs_indices_weighted
+            
+            self.log("model_loss/generator_total_loss", loss_G) # log final loss
             
             # if optimizing with registered buffer, oveerwrite buffer with empty tensor
             if using_optimization:
