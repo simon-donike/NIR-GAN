@@ -168,21 +168,30 @@ class Px2Px_PL(pl.LightningModule):
         # only perform image logging for n pics, not all in val loader
         if batch_idx<self.config.custom_configs.Logging.num_val_images:
             if self.logger and hasattr(self.logger, 'experiment'):
-                # log Stadard image visualizations, deep copy to avoid graph problems
+                
+                # log standard image visualizations, deep copy to avoid graph problems
                 val_img = plot_tensors_hist(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
-                if False:
+                
+                if False: # plot NDVI image
                     ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                     self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
-                self.log_dict({"val_stats/min_pred":torch.min(nir_pred).item(), # log stats
-                            "val_stats/max_pred":torch.max(nir_pred).item(),
-                            "val_stats/mean_pred":torch.mean(nir_pred).item()},
-                            on_epoch=True,sync_dist=True)
-                self.log_dict({"val_stats/min_input":torch.min(nir).item(), # log stats
-                            "val_stats/max_input":torch.max(nir).item(),
-                            "val_stats/mean_input":torch.mean(nir).item()},
-                            on_epoch=True,sync_dist=True)
+                
+                # Log Input and Prediction Value Statistics
+                if False:
+                    self.log_dict({"val_stats/min_pred":torch.min(nir_pred).item(), # log stats
+                                "val_stats/max_pred":torch.max(nir_pred).item(),
+                                "val_stats/mean_pred":torch.mean(nir_pred).item()},
+                                on_epoch=True,sync_dist=True)
+                    self.log_dict({"val_stats/min_input":torch.min(nir).item(), # log stats
+                                "val_stats/max_input":torch.max(nir).item(),
+                                "val_stats/mean_input":torch.mean(nir).item()},
+                                on_epoch=True,sync_dist=True)
+                
+                # get and log RS indices losses
+                indices_dict = self.rs_losses.get_and_weight_losses(rgb,nir,nir_pred,mode="logging_dict")
+                self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
                 
     def extract_batch(self, batch):
         rgb = batch["rgb"]

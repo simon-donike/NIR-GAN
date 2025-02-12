@@ -20,7 +20,7 @@ class RemoteSensingIndices():
             raise NotImplementedError(f"Criterion '{criterion}' not implemented. 'l1' or 'l2' are supported.")
         
 
-    def get_and_weight_losses(self,rgb,nir,nir_pred,loss_config=None):
+    def get_and_weight_losses(self,rgb,nir,nir_pred,loss_config=None,mode="loss"):
         """
         Calcualates all metrics and weights them according to the loss_config.
 
@@ -29,6 +29,7 @@ class RemoteSensingIndices():
             nir (1-band tensor): nir target
             nir_pred (1-band tensor): NIR prediction
             loss_config (dict): Dict of loss weights. Defaults to None.
+            mode (str): Mode of operation. 'loss' or 'logging_dict'. Defaults to "loss".
         Returns:
             float: Total weighted loss
         """
@@ -49,17 +50,29 @@ class RemoteSensingIndices():
         msavi_loss = self.msavi_calculation(rgb,nir,nir_pred)
         evi_loss = self.evi_calculation(rgb,nir,nir_pred)
         
-        # perform weighting
-        ndvi_loss_weighted = loss_config["lambda_ndvi"] * ndvi_loss
-        ndwi_loss_weighted = loss_config["lambda_ndwi"] * ndwi_loss
-        gndvi_loss_weighted = loss_config["lambda_gndvi"] * gndvi_loss
-        savi_loss_weighted = loss_config["lambda_savi"] * savi_loss
-        msavi_loss_weighted = loss_config["lambda_msavi"] * msavi_loss
-        evi_loss_weighted = loss_config["lambda_evi"] * evi_loss
+        if mode=="loss":
+            # perform weighting
+            ndvi_loss_weighted = loss_config["lambda_ndvi"] * ndvi_loss
+            ndwi_loss_weighted = loss_config["lambda_ndwi"] * ndwi_loss
+            gndvi_loss_weighted = loss_config["lambda_gndvi"] * gndvi_loss
+            savi_loss_weighted = loss_config["lambda_savi"] * savi_loss
+            msavi_loss_weighted = loss_config["lambda_msavi"] * msavi_loss
+            evi_loss_weighted = loss_config["lambda_evi"] * evi_loss
+            
+            # calculate toral loss and return
+            total_loss = ndvi_loss_weighted + ndwi_loss_weighted + gndvi_loss_weighted + savi_loss_weighted + msavi_loss_weighted + evi_loss_weighted
+            return(total_loss)
         
-        # calculate toral loss and return
-        total_loss = ndvi_loss_weighted + ndwi_loss_weighted + gndvi_loss_weighted + savi_loss_weighted + msavi_loss_weighted + evi_loss_weighted
-        return(total_loss)
+        elif mode=="logging_dict":
+            log_dict = {"indices_loss/ndvi_loss": ndvi_loss,
+                        "indices_loss/ndwi_loss": ndwi_loss,
+                        "indices_loss/gndvi_loss": gndvi_loss,
+                        "indices_loss/savi_loss": savi_loss,
+                        "indices_loss/msavi_loss": msavi_loss,
+                        "indices_loss/evi_loss": evi_loss}
+            return log_dict
+        else:
+            raise NotImplementedError(f"Mode '{mode}' not implemented. 'loss' or 'logging_dict' are supported.")
         
 
     def prepare_tensor_for_loss(self,rgb,nir,nir_pred):
