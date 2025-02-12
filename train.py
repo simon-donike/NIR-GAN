@@ -98,7 +98,7 @@ if __name__ == '__main__':
                     strategy="ddp",
                     check_val_every_n_epoch=1,
                     #val_check_interval=1.,
-                    limit_val_batches=500,
+                    limit_val_batches=50,
                     max_epochs=99999,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 

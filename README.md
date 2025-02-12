@@ -1,4 +1,4 @@
-# NIR-GAN: Synthetic NIR band from RGB Satellite Imagery
+# NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
 ![Sample Result](resources/banner2.png)
 
 ## Overview
@@ -17,27 +17,42 @@ In this scenario, synthesizing the NIR band from RGB bands is crucial. By using 
   
 - **Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands without relying on indices like NDVI that require both true NIR and red bands.
 
-## Data
-The model is trained using low-resolution (10m) Sentinel-2 satellite imagery, specifically focusing on RGB inputs and the corresponding NIR band. This dataset provides the necessary spectral information in the visible and near-infrared range to train the GAN for NIR prediction.
-- **Input Data**: Sentinel-2 RGB Bands, used as input to the generator to synthesize the NIR band.
-- **Target Data**: Sentinel-2 NIR Band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.
-
+## Training Data
+The model is trained using the SEN2NAIP-v2 satellite imagery dataset, specifically focusing on RGB inputs and the corresponding NIR band. This dataset provides the necessary spectral information in the visible and near-infrared range to train the GAN for NIR prediction.
+- **Input Data**: Sentinel-2-like 2.5m RGB Bands, used as input to the generator to synthesize the NIR band.
+- **Target Data**: Sentinel-2-like 2.5m NIR Band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.  
+Note: The spectral range of the input data is in the domain of Sentinel-2 images.  
 
 ### Output Data
-- **Fake NIR Images**: Generated NIR bands based solely on the input RGB bands.
+- **Synthetic NIR Images**: Generated NIR bands based solely on the input RGB bands, with Sentinel-2-like spectral charachteristics.
 
 ## Architecture
-
-2. Pix2Pix Conditional GAN:
-- The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters.
+The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters.  
 - **Generator**: The Pix2Pix generator uses an resnet encoder-decoder architecture, leveraging conditional information from the RGB bands to enhance the synthetic NIR output.
 - **Discriminator**: The Pix2Pix discriminator accepts both the generated NIR band and the corresponding RGB input to evaluate the consistency between the RGB and synthetic NIR. This approach provides additional feedback, helping the model learn more accurate mappings from RGB to NIR.
 
 ### Installation
-
 Clone the repository:
 
 ```bash
 git clone https://github.com/simon-donike/NIR_SRGAN.git
 cd NIR_SRGAN
 ```
+
+### Train on Custom Dataset
+To train on your own dataset, switch out the pytorch-lightning datamodule in the train.py script with your own. Your dataloader needs to return a dictionary with the following keys:
+- "rgb": Bx3xWxH RGB image tensor
+- "nir": Bx1xWxH NIR image tensor
+
+Features:
+- Multi-GPU support
+- Metric and Image Logging: pass WandB Callback to PL-Trainer to enable wandb logging
+- Adjust hyperparamters in config file, such as
+    - model sizes, inputs and properties
+    - finetuning on previous checkpoints
+    - padding operations for edge artifact removal
+    - learning rate
+    - loss weights
+    - optimizer scheduler settings (patience, factor, etc)
+    - etc.
+

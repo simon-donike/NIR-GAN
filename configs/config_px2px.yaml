@@ -21,14 +21,14 @@ base_configs:
   beta1: 0.5 # Adam optimizer beta1
 
   # Loss weights
-  lambda_GAN: 5.0 # orig:1
-  lambda_L1: 10.0 # orig: 100
+  lambda_GAN: 1.0 # orig:1
+  lambda_L1: 100.0 # orig: 100
   lambda_ssim: 0.0 # untested
   lambda_hist: 0.0
   use_training_pred_optimization: True
 
-  # RS indices weights
-  lambda_rs_losses: 0.1 # RS indices vs all others
+  # RS indices weights - 0 for skipping
+  lambda_rs_losses: 1. # RS indices vs all others
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
     lambda_ndvi: 0.2
@@ -38,6 +38,7 @@ base_configs:
     lambda_msavi: 0.2
     lambda_gndvi: 0.0
 
+# Logging and PL-Trainer Settings
 custom_configs:
   Logging:
     num_val_images: 1
@@ -47,6 +48,7 @@ custom_configs:
     load_weights_only: False # Load ckpt file only
     weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
 
+# Optim Scheduler Settings
 Schedulers:
   metric: 'val/L1'
   patience_g: 100
@@ -56,14 +58,18 @@ Schedulers:
   verbose: True
   interval: 'epoch'
 
+# Data Settings
 Data:
-  normalize: False
+  normalize: False # TODO: removed this option
+  
+  # Dataloader Settings
   train_batch_size: 24
   val_batch_size: 5
   num_workers: 16
   prefetch_factor: 2
   persistent_workers: True
 
+  # Padding for removal of edge artifacts
   padding: True
   padding_amount: 10
 
