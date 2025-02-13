@@ -25,7 +25,7 @@ base_configs:
   lambda_L1: 100.0 # orig: 100
   lambda_ssim: 0.0 # untested
   lambda_hist: 0.0
-  use_training_pred_optimization: True
+  use_training_pred_optimization: False
 
   # RS indices weights - 0 for skipping
   lambda_rs_losses: 1. # RS indices vs all others
@@ -37,6 +37,10 @@ base_configs:
     lambda_savi: 0.2
     lambda_msavi: 0.2
     lambda_gndvi: 0.0
+
+# SatCLIP Settings
+satclip:
+  use_satclip: False
 
 # Logging and PL-Trainer Settings
 custom_configs:
@@ -80,3 +84,4 @@ Data:
   sen2naip_settings:
     base_path: "/data2/simon/"
     dataset_type: "synthetic2"
+    return_coords: True

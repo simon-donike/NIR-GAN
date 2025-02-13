@@ -34,6 +34,15 @@ class Px2Px_PL(pl.LightningModule):
             from utils.remote_sensing_indices import RemoteSensingIndices
             crit = self.config.base_configs.rs_losses_criterium
             self.rs_losses = RemoteSensingIndices(mode="loss",criterion=crit)
+            
+        # define weather SatClip to be used or not
+        if "satclip" in self.config:
+            self.satclip = self.config.satclip.use_satclip
+            if self.satclip:
+                from model.satclip.satclip_wrapper import SatClIP_wrapper
+                self.satclip_model = SatClIP_wrapper()
+        else:
+            self.satclip = False
         
     def on_train_start(self):
         # runs before training, used to set buffer shapes for multi GPU training optimization
@@ -54,7 +63,8 @@ class Px2Px_PL(pl.LightningModule):
     def on_train_batch_start(self, batch, batch_idx):
         # Reset cache at the start of each batch
         # Tis holds the pred so that we can do it only once per optimizer
-        self.pred_cache = None
+        #self.pred_cache = None
+        pass
 
     @torch.no_grad()
     def predict_step(self, rgb):
@@ -82,11 +92,11 @@ class Px2Px_PL(pl.LightningModule):
         if using_optimization:
             if optimizer_idx == 0 or torch.all(self.pred_cache == 0):
                 pred = self.forward(rgb)
-                print("Step0: Buffer: ",self.pred_cache.mean())
+                #print("Step0: Buffer: ",self.pred_cache.mean())
                 self.pred_cache.copy_(pred)
-                print("Step0: Writing to buffer",self.pred_cache.mean())
+                #print("Step0: Writing to buffer",self.pred_cache.mean())
             if optimizer_idx == 1:
-                print("Step1: Reading from buffer:",self.pred_cache.mean())
+                #print("Step1: Reading from buffer:",self.pred_cache.mean())
                 pred = self.pred_cache
         # if not using optimization, just predict it again for optimizer 1
         else:
@@ -194,9 +204,32 @@ class Px2Px_PL(pl.LightningModule):
                 self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
                 
     def extract_batch(self, batch):
+        """
+        Handles the extraction and return of input and output.
+        If wanted, also handles encoding of location information and appending to input tensor.
+
+        Args:
+            batch (dict): with keys "rgb" and "nir" containing the respective tensors, optionally "coords" with location information
+
+        Returns:
+            _type_: input and target of model
+        """
         rgb = batch["rgb"]
         nir = batch["nir"]
-        return rgb, nir
+        
+        # return if no location encoding wanted
+        if not self.satclip:
+            return rgb, nir
+        else:
+            # Here, we append the expanded location embeddings to the input tensor
+            coords = batch["coords"] # extract coordinates
+            coords_embeds = self.satclip_model.predict(coords) # get location embeddings
+            coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
+            coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
+            coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='nearest') # interpolate to image size
+            rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
+            return(rgb,nir)
+            
 
     def configure_optimizers(self):
         optim_g = torch.optim.Adam(self.netG.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
@@ -207,8 +240,26 @@ class Px2Px_PL(pl.LightningModule):
                 [{'scheduler': sched_d, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'},
                  {'scheduler': sched_g, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'}])
     
+
+config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+m = Px2Px_PL(config)
+
+
+
+
+    
 # Testing
 if __name__ == "__main__":
+    """
+    # Testing for SatCLIP inclusion
+    rgb = torch.rand(5,3,512,512)
+    nir = torch.rand(5,1,512,512)
+    coords = torch.rand(5,2)
+    batch = {"rgb":rgb, "nir":nir, "coords":coords}
+    l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
+    l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
+    """
+    
     config = OmegaConf.load("configs/config_px2px.yaml")
     m = Px2Px_PL(config)
     m.on_train_start()

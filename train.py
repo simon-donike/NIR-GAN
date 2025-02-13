@@ -7,6 +7,9 @@ import os, datetime
 from multiprocessing import freeze_support
 import matplotlib.pyplot as plt
 
+# Only Run on one GPU
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 # local imports
 from model.SRGAN import SRGAN_model
@@ -14,18 +17,15 @@ from model.pix2pix import Px2Px_PL
 
 # Run Main Function
 if __name__ == '__main__':
-    # enable if running on Windows
-    #freeze_support()
 
     # General
     torch.set_float32_matmul_precision('medium')
     # load config
-    config = OmegaConf.load("configs/config_px2px.yaml")
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
 
     #############################################################################################################
     " LOAD MODEL "
     #############################################################################################################
-    # load rpetrained or instanciate new
     model = Px2Px_PL(config)
 
     # set reload checkpoint settings for trainer
@@ -49,7 +49,7 @@ if __name__ == '__main__':
     print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
     print("Length of Val Dataloader:",len(pl_datamodule.val_dataloader())*config.Data.val_batch_size)
 
-    # Do a test on model and adtaloader + visualzation
+    # Do a test on model and datalaoder + visualzation
     test = False
     if test:
         from utils.test_dataset import save_ds_image
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "NIR_GAN" 
+    wandb_project = "NIR_GAN_SatCLIP" 
     wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers

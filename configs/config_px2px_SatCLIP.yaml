@@ -1,0 +1,88 @@
+base_configs:
+  direction: "AtoB"
+  isTrain: true
+  #checkpoints_dir: "logs/checkpoints_px" # unused
+  full_key: null
+  name: "px"
+  preprocess: null
+  input_nc: 4
+  output_nc: 1
+  ngf: 64
+  ndf: 64
+  netD: "basic"
+  netG: "resnet_9blocks"
+  norm: "instance"
+  no_dropout: true
+  init_type: "normal"
+  init_gain: 0.02
+  n_layers_D: 3
+  gan_mode: "lsgan"
+  lr: 0.0002
+  beta1: 0.5 # Adam optimizer beta1
+
+  # Loss weights
+  lambda_GAN: 1.0 # orig:1
+  lambda_L1: 100.0 # orig: 100
+  lambda_ssim: 0.0 # untested
+  lambda_hist: 0.0
+  use_training_pred_optimization: False
+
+  # RS indices weights - 0 for skipping
+  lambda_rs_losses: 0.0 # RS indices vs all others
+  rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
+  internal_rs_loss_weights:  # RS metrics internal weights
+    lambda_ndvi: 0.2
+    lambda_ndwi: 0.2
+    lambda_evi: 0.2
+    lambda_savi: 0.2
+    lambda_msavi: 0.2
+    lambda_gndvi: 0.0
+
+# SatCLIP Settings
+satclip:
+  use_satclip: True # wether to use SatCLIP or not
+  scaling_factor: 0.1 # scale embeddings to correlate with data range of input images
+
+# Logging and PL-Trainer Settings
+custom_configs:
+  Logging:
+    num_val_images: 1
+  Model:
+    load_checkpoint: False # Continue PL-Style
+    ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN/2025-02-10_15-34-10/epoch=61-step=65100.ckpt"
+    load_weights_only: False # Load ckpt file only
+    weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
+
+# Optim Scheduler Settings
+Schedulers:
+  metric: 'val/L1'
+  patience_g: 100
+  patience_d: 100
+  factor_g: 0.5
+  factor_d: 0.5
+  verbose: True
+  interval: 'epoch'
+
+# Data Settings
+Data:
+  normalize: False # TODO: removed this option
+  
+  # Dataloader Settings
+  train_batch_size: 24
+  val_batch_size: 5
+  num_workers: 16
+  prefetch_factor: 2
+  persistent_workers: True
+
+  # Padding for removal of edge artifacts
+  padding: True
+  padding_amount: 10
+
+  # Detailed Dataset Setttings
+  dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
+  data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
+  spectral_matching: "none" #'histogram'
+  sen2naip_settings:
+    base_path: "/data2/simon/"
+    dataset_type: "synthetic2"
+    return_coords: True

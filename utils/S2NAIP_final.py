@@ -7,8 +7,8 @@ from io import BytesIO
 import numpy as np
 import h5py
 import pytorch_lightning as pl
-from albumentations import Compose, HorizontalFlip, RandomRotate90, ShiftScaleRotate
-from albumentations.pytorch import ToTensorV2
+#from albumentations import Compose, HorizontalFlip, RandomRotate90, ShiftScaleRotate
+#from albumentations.pytorch import ToTensorV2
 
 
 # Define your dataset class
@@ -45,8 +45,14 @@ class SEN2NAIPv2(Dataset):
         # set padding settings
         if self.config.Data.padding:
             self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+            
+        # set return coords condition
+        if "return_coords" in config.Data.sen2naip_settings:
+            self.return_coords = config.Data.sen2naip_settings.return_coords
+        else:
+            self.return_coords = False
 
-        print("Instanciated SEN2NAIPv2 dataset with",len(self.dataset.metadata),"datapoints for",phase)
+        print("Instanciated SEN2NAIPv2 dataset with",len(self.dataset.metadata),"datapoints for phase: ",phase)
 
     def __len__(self):
         return len(self.dataset.metadata)
@@ -61,7 +67,7 @@ class SEN2NAIPv2(Dataset):
 
     def __getitem__(self, idx):
         datapoint = self.dataset.metadata.iloc[idx]
-        lr,hr = self.get_data(datapoint)
+        lr,hr,metadata = self.get_data(datapoint)
         lr = lr.transpose(2,0,1)
         hr = hr.transpose(2,0,1)
         lr = lr[:,:128,:128]
@@ -87,10 +93,20 @@ class SEN2NAIPv2(Dataset):
             rgb = self.pad(rgb)
             nir = self.pad(nir.unsqueeze(0)).squeeze(0)
             
+        # assure shapes match
         if len(nir.shape)==2:
             nir = nir.unsqueeze(0)
-        return {"rgb":rgb, "nir": nir}
+            
+        # if wanted, return coordinates as well
+        return_dict = {"rgb":rgb, "nir": nir}
+        
+        # add location to dictionary if wanted
+        if self.return_coords == True:
+            coords = self.get_centroid_from_metadata(metadata)
+            return_dict["coords"] = coords
 
+        return return_dict
+        
     def augment_images(self,rgb,nir):
         # 1. value stretch
         if np.random.randint(0,100) > 101:
@@ -125,13 +141,31 @@ class SEN2NAIPv2(Dataset):
 
         with BytesIO(data_bytes[0][0]) as f:
             with h5py.File(f, "r") as g:
-                #metadata = eval(g.attrs["metadata"])
+                metadata = eval(g.attrs["metadata"])
                 lr1 = np.moveaxis(g["input"][0:4], 0, -1)
                 hr1 = np.moveaxis(g["target"][0:4], 0, -1)
         lr1 = lr1.astype(np.float32)
         hr1 = hr1.astype(np.float32)
 
-        return(lr1,hr1)
+        return(lr1,hr1,metadata)
+    
+    def get_centroid_from_metadata(self,metadata):
+        from pyproj import Transformer
+        # Extract Information
+        width = metadata["hr_profile"]["width"]
+        height = metadata["hr_profile"]["height"]
+        crs = metadata["hr_profile"]["crs"]
+        trans = metadata["hr_profile"]["transform"]
+        # Get middle of image
+        centroid_x = width / 2
+        centroid_y = height / 2
+        
+        # Get geo coordinates
+        geo_x, geo_y = trans * (centroid_x, centroid_y)
+        transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+        lon, lat = transformer.transform(geo_x, geo_y)
+        return(torch.Tensor([lon,lat]))
+        
 
 
 class S2NAIP_dm(pl.LightningDataModule):
