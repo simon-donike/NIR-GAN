@@ -41,6 +41,7 @@ class Px2Px_PL(pl.LightningModule):
             if self.satclip:
                 from model.satclip.satclip_wrapper import SatClIP_wrapper
                 self.satclip_model = SatClIP_wrapper()
+                self.satclip_model = self.satclip_model.to(self.device)
         else:
             self.satclip = False
         
@@ -168,6 +169,9 @@ class Px2Px_PL(pl.LightningModule):
                         
         # Predict, returns denormed NIR
         nir_pred = self.predict_step(rgb)
+        
+        # remove Embedding dimension if present
+        rgb = rgb[:,:3,:,:] 
 
         """ 2. Log Generator Metrics """
         # log image metrics     
@@ -200,8 +204,9 @@ class Px2Px_PL(pl.LightningModule):
                                 on_epoch=True,sync_dist=True)
                 
                 # get and log RS indices losses
-                indices_dict = self.rs_losses.get_and_weight_losses(rgb,nir,nir_pred,mode="logging_dict")
-                self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
+                if self.config.base_configs.lambda_rs_losses>0.0:
+                    indices_dict = self.rs_losses.get_and_weight_losses(rgb,nir,nir_pred,mode="logging_dict")
+                    self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
                 
     def extract_batch(self, batch):
         """
@@ -223,10 +228,13 @@ class Px2Px_PL(pl.LightningModule):
         else:
             # Here, we append the expanded location embeddings to the input tensor
             coords = batch["coords"] # extract coordinates
+            coords = coords.to(self.satclip_model.device) # move to same device as embed model
             coords_embeds = self.satclip_model.predict(coords) # get location embeddings
             coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
             coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
             coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='nearest') # interpolate to image size
+            coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
+            coords_embeds = coords_embeds.to(rgb.device) # move to device
             rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
             return(rgb,nir)
             
