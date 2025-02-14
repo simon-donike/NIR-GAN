@@ -41,6 +41,7 @@ class Px2Px_PL(pl.LightningModule):
             if self.satclip:
                 from model.satclip.satclip_wrapper import SatClIP_wrapper
                 self.satclip_model = SatClIP_wrapper()
+                self.satclip = self.satclip.eval()
                 self.satclip_model = self.satclip_model.to(self.device)
         else:
             self.satclip = False
@@ -66,6 +67,20 @@ class Px2Px_PL(pl.LightningModule):
         # Tis holds the pred so that we can do it only once per optimizer
         #self.pred_cache = None
         pass
+            
+    def clean_checkpoint(self,checkpoint_path,unexpected_keys=[]):
+        # Removes Unexpected keys from checkpoint
+        # Use this right adfter instanciating the model when facing this issue
+        checkpoint = torch.load(checkpoint_path)        
+        # Remove the unexpected key
+        unexpected_keys = unexpected_keys
+        for k in unexpected_keys:
+            if k in checkpoint['state_dict']:
+                del checkpoint['state_dict'][k]
+        # Save the modified checkpoint or return it
+        torch.save(checkpoint, checkpoint_path)
+        print("Removed unexpected keys from checkpoint: ",unexpected_keys)
+        return checkpoint_path
 
     @torch.no_grad()
     def predict_step(self, rgb):
@@ -171,6 +186,7 @@ class Px2Px_PL(pl.LightningModule):
         nir_pred = self.predict_step(rgb)
         
         # remove Embedding dimension if present
+        embed = rgb[:,3,:,:]
         rgb = rgb[:,:3,:,:] 
 
         """ 2. Log Generator Metrics """
@@ -188,12 +204,12 @@ class Px2Px_PL(pl.LightningModule):
                 ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
                 
-                if False: # plot NDVI image
+                if self.config.custom_configs.Logging.log_ndvi: # plot NDVI image
                     ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                     self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
                 
                 # Log Input and Prediction Value Statistics
-                if False:
+                if self.config.custom_configs.Logging.log_input_stats:
                     self.log_dict({"val_stats/min_pred":torch.min(nir_pred).item(), # log stats
                                 "val_stats/max_pred":torch.max(nir_pred).item(),
                                 "val_stats/mean_pred":torch.mean(nir_pred).item()},
@@ -201,6 +217,11 @@ class Px2Px_PL(pl.LightningModule):
                     self.log_dict({"val_stats/min_input":torch.min(nir).item(), # log stats
                                 "val_stats/max_input":torch.max(nir).item(),
                                 "val_stats/mean_input":torch.mean(nir).item()},
+                                on_epoch=True,sync_dist=True)
+                if self.config.satclip.use_satclip:
+                    self.log_dict({"val_stats/min_embed":embed.min(embed).item(), # log stats
+                                "val_stats/max_embed":embed.max(embed).item(),
+                                "val_stats/mean_embed":embed.mean(embed).item()},
                                 on_epoch=True,sync_dist=True)
                 
                 # get and log RS indices losses
@@ -229,7 +250,8 @@ class Px2Px_PL(pl.LightningModule):
             # Here, we append the expanded location embeddings to the input tensor
             coords = batch["coords"] # extract coordinates
             coords = coords.to(self.satclip_model.device) # move to same device as embed model
-            coords_embeds = self.satclip_model.predict(coords) # get location embeddings
+            with torch.no_grad():
+                coords_embeds = self.satclip_model.predict(coords) # get location embeddings
             coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
             coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
             coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='nearest') # interpolate to image size

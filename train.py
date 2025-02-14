@@ -38,6 +38,7 @@ if __name__ == '__main__':
     resume_from_checkpoint=None
     if config.custom_configs.Model.load_checkpoint==True:
         resume_from_checkpoint=config.custom_configs.Model.ckpt_path
+        resume_from_checkpoint = model.clean_checkpoint(resume_from_checkpoint,["pred_cache"]) # clean state dict manually
         print("Resuming from checkpoint PL-style:",resume_from_checkpoint)
 
     #############################################################################################################
