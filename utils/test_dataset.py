@@ -3,7 +3,10 @@ import matplotlib.pyplot as plt
 def save_ds_image(pl_datamodule,model):
     b = next(iter(pl_datamodule.train_dataloader()))
     model = model.eval()
-    fake_nir = model.predict_step(b["rgb"])
+    if "coords" in b.keys():
+        fake_nir = model.predict_step(b["rgb"],b["coords"])
+    else:
+        fake_nir = model.predict_step(b["rgb"])
     model = model.train()
     fake_nir = fake_nir.detach().cpu().numpy()[0]  # Assuming this is a batch with shape [batch, channels, height, width]
 

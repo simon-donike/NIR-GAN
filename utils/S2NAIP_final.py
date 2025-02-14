@@ -16,6 +16,7 @@ class SEN2NAIPv2(Dataset):
     def __init__(self, config, phase="train"):        
         # extract infos from config
         self.config = config
+        self.image_size = self.config.Data.sen2naip_settings.image_size
         base_path = config.Data.sen2naip_settings.base_path
         dataset_type = config.Data.sen2naip_settings.dataset_type
 
@@ -68,14 +69,10 @@ class SEN2NAIPv2(Dataset):
     def __getitem__(self, idx):
         datapoint = self.dataset.metadata.iloc[idx]
         lr,hr,metadata = self.get_data(datapoint)
-        lr = lr.transpose(2,0,1)
         hr = hr.transpose(2,0,1)
-        lr = lr[:,:128,:128]
-        hr = hr[:,:512,:512]
-        lr,hr = torch.tensor(lr).float(),torch.tensor(hr).float()
-        lr = self.get_b4(lr)
+        hr = hr[:,:self.image_size,:self.image_size]
+        hr = torch.tensor(hr).float()
         hr = self.get_b4(hr)
-        lr = lr/10000.
         hr = hr/10000.
         
         rgb = hr[:3,:,:]

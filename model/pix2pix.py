@@ -41,7 +41,7 @@ class Px2Px_PL(pl.LightningModule):
             if self.satclip:
                 from model.satclip.satclip_wrapper import SatClIP_wrapper
                 self.satclip_model = SatClIP_wrapper()
-                self.satclip = self.satclip.eval()
+                self.satclip_model = self.satclip_model.eval()
                 self.satclip_model = self.satclip_model.to(self.device)
         else:
             self.satclip = False
@@ -83,16 +83,12 @@ class Px2Px_PL(pl.LightningModule):
         return checkpoint_path
 
     @torch.no_grad()
-    def predict_step(self, rgb):
+    def predict_step(self, rgb,coords=None):
         assert self.training == False, "Model is in training mode, set to eval mode before predicting"
-        # handle padding
-        # trained model expectes 512 + 10 pads in each direction. Results might be worse without padding.
-        if False: # TODO: Fix the padding operations
-            pd_no = self.config.Data.padding_amount # extract padding number
-            if rgb.shape[-1]<= 512+2*pd_no:
-                rgb = torch.nn.functional.pad(rgb,(pd_no,pd_no,pd_no,pd_no),mode="reflect")
-            if rgb.shape[-1]<= 512+2*pd_no:
-                pass # TODO: implement cropping of middle if image is bigger
+
+        if self.satclip and coords!=None:
+            # Let extract_batch handle the embedding, without NIR ground truth
+            rgb,_ = self.extract_batch({"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords})
         nir_pred = self.forward(rgb)
         return nir_pred
 
@@ -144,36 +140,47 @@ class Px2Px_PL(pl.LightningModule):
         if optimizer_idx == 1:
             fake_AB = torch.cat((rgb, pred), 1)
             pred_fake = self.netD(fake_AB)
+            
+            # Calculate Standard Losses
             loss_G_GAN = self.criterionGAN(pred_fake, True)
             self.log("model_loss/generator_GAN_loss", loss_G_GAN)
             loss_G_L1 = self.criterionL1(pred, nir)
             self.log("model_loss/generator_L1", loss_G_L1)
-            loss_G_ssim = ssim_loss(pred, nir)
-            self.log("model_loss/generator_ssim", loss_G_ssim)
-            loss_G_hist = hist_loss(pred, nir)
-            self.log("model_loss/generator_hist", loss_G_hist)
-            
-            # get remote sensing indices
-            if self.config.base_configs.lambda_rs_losses>0.0:
-                losses_rs_indices = self.rs_losses.get_and_weight_losses(rgb,nir,pred)
-                losses_rs_indices_weighted = losses_rs_indices * self.config.base_configs.lambda_rs_losses
-                self.log("model_loss/indices_loss_weighted", losses_rs_indices)
-                
-            # weight losses
+
+            # Weight Standard Losses
             loss_G_GAN_weighted = loss_G_GAN * self.config.base_configs.lambda_GAN
             loss_G_L1_weighted = loss_G_L1 * self.config.base_configs.lambda_L1
-            loss_G_ssim_weighted = loss_G_ssim * self.config.base_configs.lambda_ssim
-            loss_G_hist_weighted = loss_G_hist * self.config.base_configs.lambda_hist
-            # final weighting
-            loss_G = loss_G_GAN_weighted + loss_G_L1_weighted + loss_G_ssim_weighted + loss_G_hist_weighted
-            if self.config.base_configs.lambda_rs_losses>0.0:
-                loss_G += losses_rs_indices_weighted
+            # sum standard losses
+            loss_G = loss_G_GAN_weighted + loss_G_L1_weighted
+
+            # CALCULATE FANCY LOSSES
+            # Calculate, Weight and Log SSIM Losses
+            if self.config.base_configs.lambda_ssim>0.0:
+                loss_G_ssim = ssim_loss(pred, nir)
+                self.log("model_loss/generator_ssim", loss_G_ssim) 
+                loss_G_ssim_weighted = loss_G_ssim * self.config.base_configs.lambda_ssim
+                loss_G = loss_G + loss_G_ssim_weighted
+
+            if self.config.base_configs.lambda_hist>0.0:
+                loss_G_hist = hist_loss(pred, nir)
+                self.log("model_loss/generator_hist", loss_G_hist)
+                loss_G_hist_weighted = loss_G_hist * self.config.base_configs.lambda_hist
+                loss_G = loss_G + loss_G_hist_weighted
             
+            # Calculate, Weight and Log RS Losses
+            if self.config.base_configs.lambda_rs_losses>0.0:
+                losses_rs_indices = self.rs_losses.get_and_weight_losses(rgb,nir,pred)
+                self.log("model_loss/indices_loss_weighted", losses_rs_indices)
+                losses_rs_indices_weighted = losses_rs_indices * self.config.base_configs.lambda_rs_losses
+                loss_G = loss_G + losses_rs_indices_weighted
+            
+            # log total weighted loss
             self.log("model_loss/generator_total_loss", loss_G) # log final loss
             
             # if optimizing with registered buffer, oveerwrite buffer with empty tensor
             if using_optimization:
-                self.pred_cache.detach_().zero_()            
+                self.pred_cache.detach_().zero_()      
+                      
             return loss_G
         
     @torch.no_grad()
@@ -185,8 +192,9 @@ class Px2Px_PL(pl.LightningModule):
         # Predict, returns denormed NIR
         nir_pred = self.predict_step(rgb)
         
-        # remove Embedding dimension if present
-        embed = rgb[:,3,:,:]
+        # Extract Embeddings if SatClip is enabled
+        if self.satclip:
+            embed = rgb[:,3,:,:]
         rgb = rgb[:,:3,:,:] 
 
         """ 2. Log Generator Metrics """
@@ -219,9 +227,9 @@ class Px2Px_PL(pl.LightningModule):
                                 "val_stats/mean_input":torch.mean(nir).item()},
                                 on_epoch=True,sync_dist=True)
                 if self.config.satclip.use_satclip:
-                    self.log_dict({"val_stats/min_embed":embed.min(embed).item(), # log stats
-                                "val_stats/max_embed":embed.max(embed).item(),
-                                "val_stats/mean_embed":embed.mean(embed).item()},
+                    self.log_dict({"val_stats/min_embed":torch.min(embed).item(), # log stats
+                                "val_stats/max_embed":torch.max(embed).item(),
+                                "val_stats/mean_embed":torch.mean(embed).item()},
                                 on_epoch=True,sync_dist=True)
                 
                 # get and log RS indices losses
@@ -254,7 +262,7 @@ class Px2Px_PL(pl.LightningModule):
                 coords_embeds = self.satclip_model.predict(coords) # get location embeddings
             coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
             coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
-            coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='nearest') # interpolate to image size
+            coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='bicubic') # interpolate to image size
             coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
             coords_embeds = coords_embeds.to(rgb.device) # move to device
             rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
@@ -271,8 +279,9 @@ class Px2Px_PL(pl.LightningModule):
                  {'scheduler': sched_g, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'}])
     
 
-config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-m = Px2Px_PL(config)
+if __name__ == "__main__":
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+    m = Px2Px_PL(config)
 
 
 

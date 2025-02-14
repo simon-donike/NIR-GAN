@@ -2,25 +2,26 @@ import os
 import random
 import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
 import rasterio
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from omegaconf import OmegaConf
+from pyproj import Transformer
 
-class S2_dataset(Dataset):
-    def __init__(self, root_dir, patch_size=512, no=10000, phase="train"):
+
+class S2_rand_dataset(Dataset):
+    def __init__(self, config, phase="train"):
         """
         Args:
             root_dir (string): Directory with all the images.
             patch_size (int): Size of the patch to be extracted (default: 512).
             transform (callable, optional): Optional transform to be applied on a sample.
         """
-        self.root_dir = root_dir
-        self.patch_size = patch_size
-        self.no = no
+        self.config = config
+        self.root_dir = self.config.Data.S2_rand_settings.base_path
+        self.patch_size = self.config.Data.S2_rand_settings.image_size
+        self.no = self.config.Data.S2_rand_settings.no_images
         self.phase=phase
         
         # Collect all the paths of the stacked_10m.tif files in the directory and subdirectories
@@ -30,16 +31,30 @@ class S2_dataset(Dataset):
                 if filename == "stacked_10m.tif":
                     self.image_paths.append(os.path.join(dirpath, filename))
         assert len(self.image_paths) > 0, "No images found in the directory"
+        if len(self.image_paths) ==1:
+            print("Warning: Train/test split depends on multiple files. Only one has been found.")
         # order file names alphabetically
         self.image_paths.sort()
-
         if phase=="train":
-            self.image_paths = self.image_paths[:-1]
+            if len(self.image_paths)==1:
+                pass
+            else:
+                self.image_paths = self.image_paths[:-1]
         elif phase=="val":
-            self.image_paths = [self.image_paths[-1]]
-            self.no = 32
+            if len(self.image_paths)==1:
+                self.no = 500
+            else:
+                self.image_paths = [self.image_paths[-1]]
+                self.no = 500
         else:
             raise ValueError("phase must be either 'train' or 'val'")
+        
+        # set padding settings
+        if self.config.Data.padding:
+            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+
+        print("Instanciated S2_random dataset with",self.no,"datapoints for phase: ",self.phase)
+
 
     def __len__(self):
         return self.no
@@ -53,6 +68,7 @@ class S2_dataset(Dataset):
         
         # Open the image using rasterio
         with rasterio.open(img_path) as dataset:
+
             # Get image dimensions
             width = dataset.width
             height = dataset.height
@@ -67,14 +83,33 @@ class S2_dataset(Dataset):
             
             # Read the patch from the image
             patch = dataset.read(window=((y, y + self.patch_size), (x, x + self.patch_size)))
-               
+            
+            if self.config.Data.S2_rand_settings.return_coords:
+                # get centroid lon/lat
+                crs = dataset.crs
+                trans = dataset.transform
+                centroid_x = x + self.patch_size / 2
+                centroid_y = y + self.patch_size / 2
+                geo_x, geo_y = trans * (centroid_x, centroid_y)
+                transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+                lon, lat = transformer.transform(geo_x, geo_y)
+                coords = torch.Tensor([lon,lat])
+            
         # turn to 0..1
         patch = patch / 10000.0
         patch = torch.from_numpy(patch).float()
         patch = torch.clamp(patch, 0, 1)
+        
+        rgb = patch[:3,:,:]
+        nir = patch[3:,:,:]
+        if self.config.Data.padding:
+            rgb = self.pad(rgb)
+            nir = self.pad(nir)
 
         # extract RGB and NIR bands
-        batch = {"rgb": patch[:3,:,:], "nir": patch[3:,:,:]}
+        batch = {"rgb": rgb, "nir": nir}
+        if self.config.Data.S2_rand_settings.return_coords:
+            batch["coords"] = coords
 
         return batch
 
@@ -84,29 +119,29 @@ class S2_datamodule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
 
-        self.root_dir = config.Data.data_dir
-        self.patch_size = 256
-        self.num_workers = config.Data.num_workers
         self.config = config
         # Initialize the dataset
-        self.dataset_train = S2_dataset(root_dir=self.root_dir,
-                                        patch_size=self.patch_size,phase="train")
-        self.dataset_val = S2_dataset(root_dir=self.root_dir,
-                                      patch_size=self.patch_size,phase="val")
+        self.dataset_train = S2_rand_dataset(self.config,phase="train")
+        self.dataset_val = S2_rand_dataset(self.config,phase="val")
         
 
     def train_dataloader(self):        
         return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
-                          shuffle=True, num_workers=self.num_workers)
+                          shuffle=True, num_workers=self.config.Data.num_workers)
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.num_workers,drop_last=True)
+                          shuffle=True, num_workers=self.config.Data.num_workers,drop_last=True)
 
 
 if __name__ == "__main__":
     # Example usage
-    config = OmegaConf.load("configs/config_NIR.yaml")
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+
+    ds = S2_rand_dataset(config,phase="train")
+    ds_v = S2_rand_dataset(config,phase="val")
+
+    
     data_module = S2_datamodule(config)
 
     # get a batch

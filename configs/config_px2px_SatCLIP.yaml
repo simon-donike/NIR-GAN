@@ -81,10 +81,16 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
-  data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
+  dataset_type: 'mixed' # ['S2NAIP', 'S2_rand', 'mixed']
+  data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:
+    image_size: 512
     base_path: "/data2/simon/"
     dataset_type: "synthetic2"
     return_coords: True
+  S2_rand_settings:
+    image_size: 512
+    base_path: "/data3/val_s2_tiles/"
+    return_coords: True
+    no_images: 50000

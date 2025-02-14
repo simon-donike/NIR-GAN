@@ -1,3 +1,5 @@
+trashbin/
+trashbin/*
 *.tif
 __pycache__/
 wandb/
@@ -16,4 +18,4 @@ images/
 images/*
 utils/prepare_dataset.py
 images/
-
+*.csv

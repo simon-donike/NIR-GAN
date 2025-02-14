@@ -12,7 +12,6 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 # local imports
-from model.SRGAN import SRGAN_model
 from model.pix2pix import Px2Px_PL
 
 # Run Main Function
@@ -21,7 +20,9 @@ if __name__ == '__main__':
     # General
     torch.set_float32_matmul_precision('medium')
     # load config
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+    #config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # Standard
+
 
     #############################################################################################################
     " LOAD MODEL "
@@ -45,14 +46,11 @@ if __name__ == '__main__':
     """ GET DATA """
     #############################################################################################################
     # create dataloaders via dataset_selector -> config -> class selection -> convert to pl_module
-    from utils.S2NAIP_final import S2NAIP_dm
-    pl_datamodule = S2NAIP_dm(config)
-    print("Length of Train Dataloader:",len(pl_datamodule.train_dataloader())*config.Data.train_batch_size)
-    print("Length of Val Dataloader:",len(pl_datamodule.val_dataloader())*config.Data.val_batch_size)
+    from utils.select_dataset import dataset_selector
+    pl_datamodule = dataset_selector(config)
 
     # Do a test on model and datalaoder + visualzation
-    test = False
-    if test:
+    if True:
         from utils.test_dataset import save_ds_image
         save_ds_image(pl_datamodule,model)
 

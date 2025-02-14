@@ -28,7 +28,7 @@ base_configs:
   use_training_pred_optimization: False
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 1. # RS indices vs all others
+  lambda_rs_losses: 0. # RS indices vs all others
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
     lambda_ndvi: 0.2
@@ -49,10 +49,10 @@ custom_configs:
     log_ndvi: False
     log_input_stats: False
   Model:
-    load_checkpoint: True # Continue PL-Style
+    load_checkpoint: False # Continue PL-Style
     ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN/2025-02-10_15-34-10/epoch=61-step=65100.ckpt"
-    load_weights_only: False # Load ckpt file only
-    weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
+    load_weights_only: True # Load ckpt file only
+    weights_path: "logs/NIR_GAN/checkpoints_selection/best_version_v1.ckpt"
 
 # Optim Scheduler Settings
 Schedulers:
@@ -76,14 +76,21 @@ Data:
   persistent_workers: True
 
   # Padding for removal of edge artifacts
-  padding: True
-  padding_amount: 10
+  padding: False
+  padding_amount: 5
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['cv', 'SPOT6']
-  data_dir: '/data1/simon/datasets/val_s2_tiles' # ['data/openImages/',''E:/thesis_paper/data/']
-  spectral_matching: "none" #'histogram'
+  dataset_type: 'S2_rand' # ['S2NAIP', 'S2_rand', 'mixed']
+  data_dir:  #'/data1/simon/datasets/inf_data/' 
+  #spectral_matching: "none" #'histogram'
+  # Individual Dataset settings
   sen2naip_settings:
+    image_size: 256
     base_path: "/data2/simon/"
     dataset_type: "synthetic2"
     return_coords: True
+  S2_rand_settings:
+    image_size: 256
+    base_path: "/data3/val_s2_tiles/"
+    return_coords: True
+    no_images: 50000
