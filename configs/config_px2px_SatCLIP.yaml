@@ -48,7 +48,7 @@ custom_configs:
   Logging:
     num_val_images: 1
     log_ndvi: False
-    log_input_stats: False
+    log_input_stats: True
   Model:
     load_checkpoint: True # Continue PL-Style
     ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-13_16-59-53/last.ckpt"
