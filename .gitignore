@@ -1,5 +1,7 @@
 trashbin/
 trashbin/*
+validation_utils/images/
+validation_utils/images/*
 *.tif
 __pycache__/
 wandb/

@@ -54,7 +54,7 @@ custom_configs:
     load_checkpoint: True # Continue PL-Style
     ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"
     load_weights_only: False # Load ckpt file only
-    weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
+    weights_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"
 
 # Optim Scheduler Settings
 Schedulers:
@@ -95,3 +95,6 @@ Data:
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
     no_images: 50000
+  worldstrat_settings:
+    image_size: 512
+    return_coords: True

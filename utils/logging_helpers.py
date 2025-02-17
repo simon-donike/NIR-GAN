@@ -56,7 +56,7 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
 
     # Create a PIL image from the BytesIO object
     buf = io.BytesIO()
-    plt.savefig(buf, format='png',dpi=40)
+    plt.savefig(buf, format='png',dpi=100)
     buf.seek(0)
     pil_image = Image.open(buf)
     plt.close()
