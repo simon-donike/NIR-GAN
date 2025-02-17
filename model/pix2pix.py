@@ -39,13 +39,39 @@ class Px2Px_PL(pl.LightningModule):
         if "satclip" in self.config:
             self.satclip = self.config.satclip.use_satclip
             if self.satclip:
+                # Using Wrapper
+                """
                 from model.satclip.satclip_wrapper import SatClIP_wrapper
                 self.satclip_model = SatClIP_wrapper()
-                self.satclip_model = self.satclip_model.eval()
                 self.satclip_model = self.satclip_model.to(self.device)
+                self.satclip_model = self.to_dense_cuda(self.satclip_model, self.device)
+                self.satclip_model = self.satclip_model.eval()
+                """
+                # straight loading
+                from model.satclip.load import get_satclip
+                satclip_path = self.config.satclip.satclip_path
+                self.satclip_model = get_satclip(satclip_path)
+            else:
+                self.satclip = False
         else:
             self.satclip = False
         
+    def to(self, device, *args, **kwargs):
+        """Handle Device Moving including SatClip Model"""
+        super(Px2Px_PL, self).to(device, *args, **kwargs)
+        if self.satclip:
+            self.satclip_model = self.satclip_model.to(device)
+        return self
+    
+    def to_dense_cuda(self,model, device):
+        for name, buf in model.named_buffers():
+            if buf.is_sparse:
+                dense_buf = buf.to_dense()
+                model._buffers[name] = dense_buf.to(device)
+            else:
+                model._buffers[name] = buf.to(device)
+        return model
+    
     def on_train_start(self):
         # runs before training, used to set buffer shapes for multi GPU training optimization
         # get batch to see shapes
@@ -257,17 +283,25 @@ class Px2Px_PL(pl.LightningModule):
         else:
             # Here, we append the expanded location embeddings to the input tensor
             coords = batch["coords"] # extract coordinates
-            coords = coords.to(self.satclip_model.device) # move to same device as embed model
-            with torch.no_grad():
-                coords_embeds = self.satclip_model.predict(coords) # get location embeddings
-            coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
-            coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
-            coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='bicubic') # interpolate to image size
-            coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
-            coords_embeds = coords_embeds.to(rgb.device) # move to device
-            rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
+            rgb = self.satclip_predict(coords,rgb) # get location embeddings
             return(rgb,nir)
             
+    def satclip_predict(self,coords,rgb):
+        print("Self Device",self.device)
+        print("Satclip Device",next(self.satclip_model.parameters()).device)
+        print("Satclip Sparse",next(self.satclip_model.parameters()).is_sparse)
+        print("RGB device",rgb.device)
+        print("Coords device",coords.device)
+        # coords and rgb are on cpu for some reason here
+        with torch.no_grad():
+            coords_embeds = self.satclip_model.forward(coords) # get location embeddings
+            coords_embeds = coords_embeds.float()
+        coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
+        coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
+        coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='bicubic') # interpolate to image size
+        coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
+        rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
+        return(rgb)
 
     def configure_optimizers(self):
         optim_g = torch.optim.Adam(self.netG.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))
@@ -284,8 +318,9 @@ if __name__ == "__main__":
     m = Px2Px_PL(config)
 
 
-
-
+    m.device
+    next(m.satclip_model.parameters()).device
+    next(m.satclip_model.parameters()).is_sparse
     
 # Testing
 if __name__ == "__main__":

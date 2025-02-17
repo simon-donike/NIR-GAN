@@ -40,18 +40,19 @@ base_configs:
 
 # SatCLIP Settings
 satclip:
+  satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
   use_satclip: True # wether to use SatCLIP or not
   scaling_factor: 0.1 # scale embeddings to correlate with data range of input images
 
 # Logging and PL-Trainer Settings
 custom_configs:
   Logging:
-    num_val_images: 1
+    num_val_images: 5
     log_ndvi: False
     log_input_stats: True
   Model:
-    load_checkpoint: True # Continue PL-Style
-    ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-13_16-59-53/last.ckpt"
+    load_checkpoint: False # Continue PL-Style
+    ckpt_path: "logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=52-step=416388.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: "logs/checkpoints_selection/best_longrun_v5.ckpt"
 
@@ -81,7 +82,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'mixed' # ['S2NAIP', 'S2_rand', 'mixed']
+  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'mixed']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:

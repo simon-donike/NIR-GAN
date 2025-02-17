@@ -8,8 +8,11 @@ from multiprocessing import freeze_support
 import matplotlib.pyplot as plt
 
 # Only Run on one GPU
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+# Set up multiprocessing safely
+#import torch.multiprocessing as mp
+#mp.set_start_method('spawn', force=True)
 
 # local imports
 from model.pix2pix import Px2Px_PL
@@ -50,7 +53,7 @@ if __name__ == '__main__':
     pl_datamodule = dataset_selector(config)
 
     # Do a test on model and datalaoder + visualzation
-    if True:
+    if False:
         from utils.test_dataset import save_ds_image
         save_ds_image(pl_datamodule,model)
 
@@ -93,8 +96,8 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[0],
-                    #strategy="ddp",  #Doesnt work for SatCLIP workflow: Device issue of satclip model vs others
+                    devices=[3],
+                    strategy="ddp",  #Doesnt work for SatCLIP workflow: Device issue of satclip model vs others
                     check_val_every_n_epoch=1,
                     val_check_interval=0.25,
                     limit_val_batches=50,
@@ -104,7 +107,7 @@ if __name__ == '__main__':
                                 wandb_logger,
                             ],
                     callbacks=[ checkpoint_callback,
-                                early_stop_callback,
+                                #early_stop_callback,
                                 lr_monitor
                                 ])
 

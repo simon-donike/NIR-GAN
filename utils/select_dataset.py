@@ -10,8 +10,8 @@ def dataset_selector(config):
         from utils.S2_dataset import S2_datamodule
         return S2_datamodule(config)
     elif dataset_type == "mixed":
-        from utils.combined_datasets import create_combined_dataset
-        return(create_combined_dataset(config))
+        from utils.combined_datasets import CombinedDataModule
+        return CombinedDataModule(config)
     else:
         raise NotImplementedError(f"Dataset Type {dataset_type} not implemented")
     
