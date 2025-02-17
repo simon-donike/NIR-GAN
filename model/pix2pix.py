@@ -40,38 +40,21 @@ class Px2Px_PL(pl.LightningModule):
             self.satclip = self.config.satclip.use_satclip
             if self.satclip:
                 # Using Wrapper
-                """
                 from model.satclip.satclip_wrapper import SatClIP_wrapper
-                self.satclip_model = SatClIP_wrapper()
-                self.satclip_model = self.satclip_model.to(self.device)
-                self.satclip_model = self.to_dense_cuda(self.satclip_model, self.device)
+                self.satclip_model = SatClIP_wrapper(device=self.device)
                 self.satclip_model = self.satclip_model.eval()
                 """
                 # straight loading
                 from model.satclip.load import get_satclip
                 satclip_path = self.config.satclip.satclip_path
                 self.satclip_model = get_satclip(satclip_path)
+                """
             else:
                 self.satclip = False
         else:
             self.satclip = False
-        
-    def to(self, device, *args, **kwargs):
-        """Handle Device Moving including SatClip Model"""
-        super(Px2Px_PL, self).to(device, *args, **kwargs)
-        if self.satclip:
-            self.satclip_model = self.satclip_model.to(device)
-        return self
-    
-    def to_dense_cuda(self,model, device):
-        for name, buf in model.named_buffers():
-            if buf.is_sparse:
-                dense_buf = buf.to_dense()
-                model._buffers[name] = dense_buf.to(device)
-            else:
-                model._buffers[name] = buf.to(device)
-        return model
-    
+
+    """
     def on_train_start(self):
         # runs before training, used to set buffer shapes for multi GPU training optimization
         # get batch to see shapes
@@ -83,6 +66,7 @@ class Px2Px_PL(pl.LightningModule):
         _, nir = self.extract_batch(sample_batch) 
         # set Cache - Important: Needs to be correct shape!
         self.register_buffer("pred_cache", torch.zeros_like(nir))
+    """
         
     def forward(self, input):
         pred = self.netG(input)
@@ -107,6 +91,7 @@ class Px2Px_PL(pl.LightningModule):
         torch.save(checkpoint, checkpoint_path)
         print("Removed unexpected keys from checkpoint: ",unexpected_keys)
         return checkpoint_path
+
 
     @torch.no_grad()
     def predict_step(self, rgb,coords=None):
@@ -285,23 +270,43 @@ class Px2Px_PL(pl.LightningModule):
             coords = batch["coords"] # extract coordinates
             rgb = self.satclip_predict(coords,rgb) # get location embeddings
             return(rgb,nir)
+        
             
     def satclip_predict(self,coords,rgb):
+        
+        # assert device is the same across data and model
+        #satclip_model_device = next(self.satclip_model.parameters()).device
+        #if coords.device != satclip_model_device:
+        #    coords = coords.to(satclip_model_device)
+
+        """
         print("Self Device",self.device)
         print("Satclip Device",next(self.satclip_model.parameters()).device)
         print("Satclip Sparse",next(self.satclip_model.parameters()).is_sparse)
         print("RGB device",rgb.device)
         print("Coords device",coords.device)
+        """
+
         # coords and rgb are on cpu for some reason here
         with torch.no_grad():
-            coords_embeds = self.satclip_model.forward(coords) # get location embeddings
-            coords_embeds = coords_embeds.float()
+            coords_embeds = self.satclip_model.predict(coords.double()).float()
+        #print("Predicted Embeds.")
         coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
         coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
         coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='bicubic') # interpolate to image size
         coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
+        
+        #if coords_embeds.device!=rgb.device: # move pred to same device as rgb for stacking
+        #    coords_embeds = coords_embeds.to(rgb.device)
+
         rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
+
+        # handle device before returning
+        #if rgb.device!=self.device:
+        #    rgb = rgb.to(self.device)
+        #    print("had to move rgb to self device:",self.device)
         return(rgb)
+
 
     def configure_optimizers(self):
         optim_g = torch.optim.Adam(self.netG.parameters(), lr=self.opt.lr, betas=(self.opt.beta1, 0.999))

@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
-from utils.normalise_s2 import minmax_percentile
+from data.normalise_s2 import minmax_percentile
 import numpy as np
 
 
@@ -56,7 +56,7 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
 
     # Create a PIL image from the BytesIO object
     buf = io.BytesIO()
-    plt.savefig(buf, format='png',dpi=100)
+    plt.savefig(buf, format='png',dpi=40)
     buf.seek(0)
     pil_image = Image.open(buf)
     plt.close()

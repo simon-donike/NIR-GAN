@@ -8,11 +8,11 @@ class SatClIP_wrapper(pl.LightningModule):
     """
     Wrapper around the SatClIP model to use it in Pytorch Lightning.
     """
-    def __init__(self, satclip_path=None):
+    def __init__(self, satclip_path=None,device="cpu"):
         super().__init__()
         if satclip_path is None:
             satclip_path = "model/satclip/satclip-resnet50-l10.ckpt"
-        self.encoder_model =  get_satclip(satclip_path)
+        self.encoder_model =  get_satclip(satclip_path,device=device)
         
         """
         ckpt = torch.load(satclip_path)
