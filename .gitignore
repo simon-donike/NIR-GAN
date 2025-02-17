@@ -5,7 +5,6 @@ validation_utils/images/*
 *.tif
 __pycache__/
 wandb/
-data/
 logs/
 *.pth
 *.ckpt
