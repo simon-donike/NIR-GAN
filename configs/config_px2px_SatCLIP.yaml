@@ -40,8 +40,9 @@ base_configs:
 
 # SatCLIP Settings
 satclip:
-  satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
   use_satclip: True # wether to use SatCLIP or not
+  satclip_style: "injected" # ['injected', 'concatenated']
+  satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
   scaling_factor: 0.1 # scale embeddings to correlate with data range of input images
 
 # Logging and PL-Trainer Settings
@@ -52,7 +53,7 @@ custom_configs:
     log_input_stats: True
   Model:
     load_checkpoint: True # Continue PL-Style
-    ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"
+    ckpt_path: "logs/NIR_GAN_SatCLIP/2025-02-17_18-52-46/epoch=81-step=477056.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"
 

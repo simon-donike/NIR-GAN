@@ -7,8 +7,8 @@ import torch
 import pandas as pd
 from utils.logging_helpers import plot_tensors
 from PIL import Image
-# import losses
-from utils.losses import ssim_loss
+import kornia
+from validation_utils.val_utils import crop_center
 
 
 
@@ -37,35 +37,57 @@ print("Loaded (only) Weights from:",config.custom_configs.Model.weights_path)
 metrics_dict = {"id":[],
                 "x":[],
                 "y":[],
-                "ssim":[]}
+                "ssim":[],
+                "psnr":[],
+                "l1":[],
+                "l2":[],
+                }
 # --- iterate and get metrics ----
 for v,batch in tqdm(enumerate(dl),total=len(dl)):
 
     rgb,nir,coords = batch["rgb"],batch["nir"],batch["coords"],
     pred = model.predict_step(rgb,coords)
 
-    # get metrics:
-    ssim = ssim_loss(nir,pred)
+    # crop center
+    rgb = crop_center(rgb.squeeze(0),450).unsqueeze(0)
+    nir = crop_center(nir.squeeze(0),450).unsqueeze(0)
+    pred = crop_center(pred.squeeze(0),450).unsqueeze(0)
 
     # get info
     x = coords[0][0].item()
     y = coords[0][1].item()
     id_ = v
 
+    # get metrics:
+    ssim = kornia.metrics.ssim(nir, pred, window_size=11).mean()
+    psnr = kornia.metrics.psnr(nir, pred, max_val=1.0)
+    l1 = torch.mean(torch.abs(nir - pred))
+    l2 = torch.mean((nir - pred) ** 2)
+
     # append to list
     metrics_dict["id"].append(id_)
     metrics_dict["x"].append(x)
     metrics_dict["y"].append(y)
     metrics_dict["ssim"].append(ssim.item())
+    metrics_dict["psnr"].append(psnr.item())
+    metrics_dict["l1"].append(l1.item())
+    metrics_dict["l2"].append(l2.item())
 
     # plot image
-    img = plot_tensors(rgb, nir, pred,title="Worldstrat Validation")
-    img.save(f'validation_utils/images/example_image_{id_}.png', 'PNG')
+    if id_%10==0:
+        img = plot_tensors(rgb, nir, pred,title="Worldstrat Validation")
+        img.save(f'validation_utils/images/example_image_{id_}.png', 'PNG')
 
     # save metrics
     df = pd.DataFrame(metrics_dict)
-    df.to_csv("validation_utils/worldstrat_metrics.csv")
+    if id_%25==0:
+        df.to_csv("validation_utils/worldstrat_metrics.csv")
 
-    if v==10:
+    if v==-1:
         break
+
+
+# Get Context info for dataset
+from validation_utils.geo_ablation import append_info_to_df
+df = append_info_to_df(df)
 
