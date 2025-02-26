@@ -25,8 +25,8 @@ In this scenario, synthesizing the NIR band from RGB bands is crucial. By using 
 ## Training Data
 The model is trained using
 - a collection of worldwide-sampled Landsat-8 and Sentinel-2 images,
-- SEN2NAIP-v2 __(source 1)__, 
-- worldstrat __(source 2)__, 
+- SEN2NAIP-v2 [1], 
+- worldstrat [2], 
 from which the RGB inputs and the corresponding NIR band have been extracted. These datasets provide the necessary spectral information in the visible and near-infrared range to train the GAN for NIR prediction, in multiple scales, and with a worldwide geographic distribution. The images are randomly sampled from the different datasets during training. In order to make the model scale-agnostic, we randomly sample a derivative resolution form the datasets according to the following table.  
 
 | Sensor      | Patches | Native Spatial Resolution | Resolution Derivatives | Geographic Distribution |
@@ -46,10 +46,10 @@ Note: The spectral range of the input data is in the domain of Sentinel-2 images
 - **Synthetic NIR Images**: Generated NIR bands based solely on the input RGB bands, with Sentinel-2-like spectral charachteristics.
 
 ## Architecture
-The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters __(source 3)__.  
+The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters [3].  
 - **Generator**: The Pix2Pix generator uses an resnet encoder-decoder architecture, leveraging conditional information from the RGB bands to enhance the synthetic NIR output.
 - **Discriminator**: The Pix2Pix discriminator accepts both the generated NIR band and the corresponding RGB input to evaluate the consistency between the RGB and synthetic NIR. This approach provides additional feedback, helping the model learn more accurate mappings from RGB to NIR.
-- **SatCLIP**: 400k parameter model that creates spatial embeddings from latitude/longitude __(source 4)__. This information is sent through a fully connected layer to project it in the 2D-space, before being scaled through a learnable paramater and then beeing injected in the model (see schema).
+- **SatCLIP**: 400k parameter model that creates spatial embeddings from latitude/longitude [4]. This information is sent through a fully connected layer to project it in the 2D-space, before being scaled through a learnable paramater and then beeing injected in the model (see schema).
 
 ### Installation
 Clone the repository:
@@ -77,7 +77,7 @@ Features:
     - etc.
 
 ### Sources
-(1) [Pix2Pix](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP)  
-(2) [Pix2Pix](https://worldstrat.github.io/)  
-(3) [Pix2Pix](https://github.com/phillipi/pix2pix)  
-(4) [SatCLIP](https://github.com/microsoft/satclip)
+[1] [SEN2NAIP](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP)  
+[2] [worldstrat](https://worldstrat.github.io/)  
+[3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
+[4] [SatCLIP](https://github.com/microsoft/satclip)
