@@ -2,7 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from PIL import Image
 import io
-from utils.normalise_s2 import minmax_percentile
+from data.normalise_s2 import minmax_percentile
 import numpy as np
 
 

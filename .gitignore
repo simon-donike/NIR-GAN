@@ -1,7 +1,10 @@
+trashbin/
+trashbin/*
+validation_utils/images/
+validation_utils/images/*
 *.tif
 __pycache__/
 wandb/
-data/
 logs/
 *.pth
 *.ckpt
@@ -16,4 +19,6 @@ images/
 images/*
 utils/prepare_dataset.py
 images/
-
+*.csv
+playground/
+playground/*

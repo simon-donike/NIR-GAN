@@ -56,14 +56,37 @@ class Pix2PixModel(BaseModel):
             self.model_names = ['G', 'D']
         else:  # during test time, only load G
             self.model_names = ['G']
-        # define networks (both generator and discriminator)
-        self.netG = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, opt.norm,
-                                      not opt.no_dropout, opt.init_type, opt.init_gain)
-
+        
+        # Choose Generator based on SatCLIP settings
+        # (a) Concatenate SatCLIP to input
+        if opt.satclip.use_satclip == True and opt.satclip.satclip_style=="concat":
+            print("Creating SatCLIP Concatenation Generator.")
+            self.netG = networks.define_G(opt.input_nc+1, opt.output_nc, opt.ngf, opt.netG, opt.norm,
+                                          not opt.no_dropout, opt.init_type, opt.init_gain)
+        # (b) Inject SatCLIP to model
+        if opt.satclip.use_satclip == True and opt.satclip.satclip_style=="inject":
+            print(f"Creating SatCLIP Injection Generator with injection style: {opt.satclip.satclip_inject_style}")
+            from model.generator_inject import define_G_inject
+            self.netG = define_G_inject(input_nc = opt.input_nc,
+                                        output_nc = opt.output_nc,
+                                        inject_style = opt.satclip.satclip_inject_style,
+                                        ngf = opt.ngf,
+                                        netG = opt.netG,
+                                        norm = opt.norm,
+                                        use_dropout= not opt.no_dropout,
+                                        init_type = opt.init_type,
+                                        init_gain = opt.init_gain)
+        else:
+            print("Creating Standard Pix2Pix Generator.")
+            self.netG = networks.define_G(opt.input_nc, opt.output_nc, opt.ngf, opt.netG, opt.norm,
+                                          not opt.no_dropout, opt.init_type, opt.init_gain)
+            
+        # Discriminator if in training
         if self.isTrain:  # define a discriminator; conditional GANs need to take both input and output images; Therefore, #channels for D is input_nc + output_nc
             self.netD = networks.define_D(opt.input_nc + opt.output_nc, opt.ndf, opt.netD,
                                           opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain)
 
+        # Loss funcitons and optimizer if in training
         if self.isTrain:
             # define loss functions
             self.criterionGAN = networks.GANLoss(opt.gan_mode)
