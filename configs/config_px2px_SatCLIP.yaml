@@ -5,12 +5,12 @@ base_configs:
   full_key: null
   name: "px"
   preprocess: null
-  input_nc: 4
+  input_nc: 3 # RGB inputs. satclip embeds get added later, put here only input shape
   output_nc: 1
   ngf: 64
   ndf: 64
   netD: "basic"
-  netG: "resnet_9blocks"
+  netG: "resnet_9blocks" # dont use a different version for now
   norm: "instance"
   no_dropout: true
   init_type: "normal"
@@ -25,7 +25,6 @@ base_configs:
   lambda_L1: 100.0 # orig: 100
   lambda_ssim: 0.0 # untested
   lambda_hist: 0.0
-  use_training_pred_optimization: False
 
   # RS indices weights - 0 for skipping
   lambda_rs_losses: 0.0 # RS indices vs all others
@@ -41,7 +40,8 @@ base_configs:
 # SatCLIP Settings
 satclip:
   use_satclip: True # wether to use SatCLIP or not
-  satclip_style: "injected" # ['injected', 'concatenated']
+  satclip_style: "inject" # ['inject', 'concat']
+  satclip_inject_style: "multiply" # ['add', 'multiply']
   satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
   scaling_factor: 0.1 # scale embeddings to correlate with data range of input images
 
@@ -52,7 +52,7 @@ custom_configs:
     log_ndvi: False
     log_input_stats: True
   Model:
-    load_checkpoint: True # Continue PL-Style
+    load_checkpoint: False # Continue PL-Style
     ckpt_path: "logs/NIR_GAN_SatCLIP/2025-02-17_18-52-46/epoch=81-step=477056.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"

@@ -6,8 +6,8 @@ import wandb
 from utils.calculate_metrics import calculate_metrics
 from utils.logging_helpers import plot_tensors_hist
 from utils.logging_helpers import plot_ndvi
-from model.pix2pix_model import Pix2PixModel
-from model.base_model import BaseModel
+#from model.pix2pix_model import Pix2PixModel
+#from model.base_model import BaseModel
 from model import networks
 from utils.losses import ssim_loss
 from utils.losses import hist_loss
@@ -20,10 +20,35 @@ class Px2Px_PL(pl.LightningModule):
         self.config = opt
         self.isTrain = self.opt.isTrain
 
-        # define networks (both generator and discriminator)
-        self.netG = networks.define_G(self.opt.input_nc, self.opt.output_nc, self.opt.ngf, self.opt.netG, self.opt.norm,
-                                      not self.opt.no_dropout, self.opt.init_type, self.opt.init_gain)
+        # TODO: THIS GETS CALLED TWICE; TRACE IT BACK!!!!!!
+        # Choose Generator based on SatCLIP settings
+        # (a) Concatenate SatCLIP to input
+        if self.config.satclip.use_satclip == True and self.config.satclip.satclip_style=="concat":
+            print("Creating SatCLIP Concatenation Generator.")
+            self.netG = networks.define_G(self.opt.input_nc+1, self.opt.output_nc, self.opt.ngf, self.opt.netG, self.opt.norm,
+                                          not self.opt.no_dropout, self.opt.init_type, self.opt.init_gain)
+        # (b) Inject SatCLIP to model
+        elif self.config.satclip.use_satclip == True and self.config.satclip.satclip_style=="inject":
+            print(f"Creating SatCLIP Injection Generator with injection style: '{self.config.satclip.satclip_inject_style}'.")
+            from model.generator_inject import define_G_inject
+            self.netG = define_G_inject(input_nc = self.opt.input_nc,
+                                        output_nc = self.opt.output_nc,
+                                        inject_style = self.config.satclip.satclip_inject_style,
+                                        ngf = self.opt.ngf,
+                                        netG = self.opt.netG,
+                                        norm = self.opt.norm,
+                                        use_dropout= not self.opt.no_dropout,
+                                        init_type = self.opt.init_type,
+                                        init_gain = self.opt.init_gain)
+            
+        # (c) No SatCLIP - standard model
+        else:
+            print("Creating Standard Pix2Pix Generator.")
+            self.netG = networks.define_G(self.opt.input_nc, self.opt.output_nc, self.opt.ngf, self.opt.netG, self.opt.norm,
+                                          not self.opt.no_dropout, self.opt.init_type, self.opt.init_gain)
+            
 
+        # Get Discriminator
         self.netD = networks.define_D(self.opt.input_nc + self.opt.output_nc, self.opt.ndf, self.opt.netD,
                                           self.opt.n_layers_D, self.opt.norm, self.opt.init_type, self.opt.init_gain)
         self.criterionGAN = networks.GANLoss(self.opt.gan_mode)
@@ -54,22 +79,17 @@ class Px2Px_PL(pl.LightningModule):
         else:
             self.satclip = False
 
-    """
-    def on_train_start(self):
-        # runs before training, used to set buffer shapes for multi GPU training optimization
-        # get batch to see shapes
-        try:
-            sample_batch = next(iter(self.trainer.datamodule.train_dataloader()))
-        except AttributeError:
-            print("No datamodule found, using test batch")
-            sample_batch = torch.zeros(5,1,512,512)
-        _, nir = self.extract_batch(sample_batch) 
-        # set Cache - Important: Needs to be correct shape!
-        self.register_buffer("pred_cache", torch.zeros_like(nir))
-    """
         
-    def forward(self, input):
-        pred = self.netG(input)
+    def forward(self, input,embeds=None):
+        if self.satclip==False:
+            pred = self.netG(input)
+        else: #self.satclip==True:
+            if self.config.satclip.satclip_style=="concat":
+                pred = self.netG(input)
+            elif self.config.satclip.satclip_style=="inject":
+                pred = self.netG(input,embeds)
+            else:
+                raise NotImplementedError("SatClip Style not recognized")
         return pred
     
     def on_train_batch_start(self, batch, batch_idx):
@@ -95,40 +115,55 @@ class Px2Px_PL(pl.LightningModule):
 
     @torch.no_grad()
     def predict_step(self, rgb,coords=None):
-        assert self.training == False, "Model is in training mode, set to eval mode before predicting"
+        assert self.training == False, "Model is in training mode, set to eval mode before predicting"        
+        
+        """ 1. Extract and Predict """
+        if self.satclip==False:
+            batch = {"rgb":rgb,"nir":torch.Tensor([0])}
+            rgb,_ = self.extract_batch(batch) # only gets rgb and nir
+            nir_pred = self.forward(rgb) # pred on only rgb
+        else: # self.satclip==True
+            if self.config.satclip.satclip_style=="concat":
+                batch = {"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords}
+                rgb,_ = self.extract_batch(batch) # handles embedding extraction
+                nir_pred = self.forward(rgb) # pred on rgb+embeds 
+            elif self.config.satclip.satclip_style=="inject":
+                batch = {"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords}
+                rgb,_,embeds = self.extract_batch(batch)
+                nir_pred = self.forward(rgb,embeds) # pred on rgb+embeds 
+            else:
+                raise NotImplementedError("SatClip Style not recognized, choose 'concat' or 'inject'")
 
-        if self.satclip and coords!=None:
-            # Let extract_batch handle the embedding, without NIR ground truth
-            rgb,_ = self.extract_batch({"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords})
-        nir_pred = self.forward(rgb)
+        # Return Prediction        
         return nir_pred
 
     def training_step(self, batch, batch_idx, optimizer_idx):
         assert self.training == True, "Model is in eval mode, set to training mode before training"
-        rgb, nir = self.extract_batch(batch)
-
-        # Checking if using optimization - (optim only available when training with PL):
-        # 1. Optimization enabled in Settings
-        # 2. Buffer exists and is registered as 'pred_cache'
-        using_optimization = self.config.base_configs.use_training_pred_optimization and "pred_cache" in dict(self.named_buffers())
-        # contiion to perform registering of prediction in order to do it once per training step
-        if using_optimization:
-            if optimizer_idx == 0 or torch.all(self.pred_cache == 0):
-                pred = self.forward(rgb)
-                #print("Step0: Buffer: ",self.pred_cache.mean())
-                self.pred_cache.copy_(pred)
-                #print("Step0: Writing to buffer",self.pred_cache.mean())
-            if optimizer_idx == 1:
-                #print("Step1: Reading from buffer:",self.pred_cache.mean())
-                pred = self.pred_cache
-        # if not using optimization, just predict it again for optimizer 1
+        
+        # Extract batch and batch Info
+        if self.satclip==False:
+            rgb,nir = self.extract_batch(batch) # only gets rgb and nir
+        else: # self.satclip==True
+            if self.config.satclip.satclip_style=="concat":
+                rgb,nir = self.extract_batch(batch) # handles embedding extraction
+            if self.config.satclip.satclip_style=="inject":
+                rgb,nir,embeds = self.extract_batch(batch)
+        
+        if self.satclip and self.config.satclip.satclip_style=="inject":
+            pred = self.forward(rgb,embeds) 
         else:
             pred = self.forward(rgb)
 
-        if optimizer_idx == 0 and batch_idx % 10 == 0:
+        # Calculate and Log Train Metrics  - only every 10th batch on Gen step
+        if optimizer_idx == 0 and batch_idx % 10 == 0 and self.logger and hasattr(self.logger, 'experiment'):
             metrics = calculate_metrics(pred=torch.clone(pred).cpu(),target=torch.clone(nir).cpu(),phase="train")
             self.log_dict(metrics,on_step=True,sync_dist=True)
-
+            
+            # if model has scale parameter, log it
+            if hasattr(self.netG, "scale_param"):
+                self.log("scale_param", self.netG.scale_param.item())
+                
+                
         # Discriminator Step
         if optimizer_idx == 0:
             # 1.1.1 Fake
@@ -186,11 +221,7 @@ class Px2Px_PL(pl.LightningModule):
                 loss_G = loss_G + losses_rs_indices_weighted
             
             # log total weighted loss
-            self.log("model_loss/generator_total_loss", loss_G) # log final loss
-            
-            # if optimizing with registered buffer, oveerwrite buffer with empty tensor
-            if using_optimization:
-                self.pred_cache.detach_().zero_()      
+            self.log("model_loss/generator_total_loss", loss_G) # log final loss   
                       
             return loss_G
         
@@ -198,15 +229,20 @@ class Px2Px_PL(pl.LightningModule):
     def validation_step(self,batch,batch_idx):
         
         """ 1. Extract and Predict """
-        rgb,nir = self.extract_batch(batch)
-                        
-        # Predict, returns denormed NIR
-        nir_pred = self.predict_step(rgb)
+        if self.satclip==False:
+            rgb,nir = self.extract_batch(batch) # only gets rgb and nir
+            nir_pred = self.predict_step(rgb) # pred on only rgb
+        else: # self.satclip==True
+            if self.config.satclip.satclip_style=="concat":
+                rgb,nir = self.extract_batch(batch) # handles embedding extraction
+                nir_pred = self.predict_step(rgb) # pred on rgb+embeds 
+            if self.config.satclip.satclip_style=="inject":
+                rgb,nir,embeds = self.extract_batch(batch)
+                nir_pred = self.predict_step(rgb,embeds) # pred on rgb+embeds 
+            
         
         # Extract Embeddings if SatClip is enabled
-        if self.satclip:
-            embed = rgb[:,3,:,:]
-        rgb = rgb[:,:3,:,:] 
+        rgb = rgb[:,:3,:,:] # get first 3 chanels, depending on settings channel 4 might be embeddings
 
         """ 2. Log Generator Metrics """
         # log image metrics     
@@ -237,11 +273,6 @@ class Px2Px_PL(pl.LightningModule):
                                 "val_stats/max_input":torch.max(nir).item(),
                                 "val_stats/mean_input":torch.mean(nir).item()},
                                 on_epoch=True,sync_dist=True)
-                if self.config.satclip.use_satclip:
-                    self.log_dict({"val_stats/min_embed":torch.min(embed).item(), # log stats
-                                "val_stats/max_embed":torch.max(embed).item(),
-                                "val_stats/mean_embed":torch.mean(embed).item()},
-                                on_epoch=True,sync_dist=True)
                 
                 # get and log RS indices losses
                 if self.config.base_configs.lambda_rs_losses>0.0:
@@ -252,6 +283,10 @@ class Px2Px_PL(pl.LightningModule):
         """
         Handles the extraction and return of input and output.
         If wanted, also handles encoding of location information and appending to input tensor.
+        Either:
+            - No Coords
+            - Concatenation of Coord Embeddings to RGB input
+            - Injection of Coord Embeddings to model
 
         Args:
             batch (dict): with keys "rgb" and "nir" containing the respective tensors, optionally "coords" with location information
@@ -265,47 +300,41 @@ class Px2Px_PL(pl.LightningModule):
         # return if no location encoding wanted
         if not self.satclip:
             return rgb, nir
-        else:
-            # Here, we append the expanded location embeddings to the input tensor
+        else: # if self.satclip==True
             coords = batch["coords"] # extract coordinates
-            rgb = self.satclip_predict(coords,rgb) # get location embeddings
-            return(rgb,nir)
+
+            # If Concatenation, predict and reshape embeddings to apppend to RTG
+            if self.config.satclip.satclip_style=="concat":
+                rgb = self.satclip_get_concat(coords,rgb)
+                return(rgb,nir)
+            
+            # If Injection, predict embeds and return all
+            elif self.config.satclip.satclip_style=="inject":
+                embeds = self.satclip_get_inject(coords)
+                return rgb,nir,embeds
+            
+            # if none of the satclip styles, raise error
+            else:
+                raise NotImplementedError("SatClip Style not recognized, choose 'concat' or 'inject'")            
         
             
-    def satclip_predict(self,coords,rgb):
-        
-        # assert device is the same across data and model
-        #satclip_model_device = next(self.satclip_model.parameters()).device
-        #if coords.device != satclip_model_device:
-        #    coords = coords.to(satclip_model_device)
-
-        """
-        print("Self Device",self.device)
-        print("Satclip Device",next(self.satclip_model.parameters()).device)
-        print("Satclip Sparse",next(self.satclip_model.parameters()).is_sparse)
-        print("RGB device",rgb.device)
-        print("Coords device",coords.device)
-        """
-
-        # coords and rgb are on cpu for some reason here
+    def satclip_get_concat(self,coords,rgb):
+        # Predict Embeddings
         with torch.no_grad():
             coords_embeds = self.satclip_model.predict(coords.double()).float()
-        #print("Predicted Embeds.")
+        # Manipulate Embeddigs to be concatenated to RGB
         coords_embeds = coords_embeds.view(rgb.shape[0], 1, 1, 256) # add 1 dimension
         coords_embeds = coords_embeds.expand(rgb.shape[0], 1, 256, 256) # expand to height dimension
         coords_embeds = torch.nn.functional.interpolate(coords_embeds, size=(rgb.shape[-1],rgb.shape[-2]), mode='bicubic') # interpolate to image size
         coords_embeds = coords_embeds * self.config.satclip.scaling_factor # scale satclip numbers to closer match input distribution
-        
-        #if coords_embeds.device!=rgb.device: # move pred to same device as rgb for stacking
-        #    coords_embeds = coords_embeds.to(rgb.device)
-
         rgb = torch.cat((rgb, coords_embeds), dim=1) # stack location embeddings to rgb conditioning
-
-        # handle device before returning
-        #if rgb.device!=self.device:
-        #    rgb = rgb.to(self.device)
-        #    print("had to move rgb to self device:",self.device)
         return(rgb)
+    
+    def satclip_get_inject(self,coords):
+        # get and return predictions
+        with torch.no_grad():
+            coords_embeds = self.satclip_model.predict(coords.double()).float()
+        return(coords_embeds)
 
 
     def configure_optimizers(self):
@@ -318,15 +347,7 @@ class Px2Px_PL(pl.LightningModule):
                  {'scheduler': sched_g, 'monitor': self.config.Schedulers.metric, 'interval': 'epoch'}])
     
 
-if __name__ == "__main__":
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-    m = Px2Px_PL(config)
 
-
-    m.device
-    next(m.satclip_model.parameters()).device
-    next(m.satclip_model.parameters()).is_sparse
-    
 # Testing
 if __name__ == "__main__":
     """
@@ -338,33 +359,30 @@ if __name__ == "__main__":
     l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
     l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
     """
-    
-    config = OmegaConf.load("configs/config_px2px.yaml")
+    # Test Model
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     m = Px2Px_PL(config)
-    m.on_train_start()
-
-    # try out simple forward
+    
+    # Test Predict Step
+    m = m.eval()
+    pred = m.predict_step(torch.rand(5,3,512,512),torch.rand(5,256))
+    print("Pred works: ",pred.shape)
+    
+    # Test Train Step
+    m = m.train()
     rgb = torch.rand(5,3,512,512)
     nir = torch.rand(5,1,512,512)
-    m = m.cpu()
+    coords = torch.rand(5,256)
+    batch = {"rgb":rgb, "nir":nir, "coords":coords}
+    l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
+    l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
+    print("Train works: ",l0,l1)
     
-    # try out training step
-    def simulate_1_step():
-        # try out simple forward
-        rgb = torch.rand(5,3,512,512)
-        nir = torch.rand(5,1,512,512)
-        batch = {"rgb":rgb, "nir":nir}
-        l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
-        l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
-
-    from datetime import datetime
-    from tqdm import tqdm
-    start = datetime.now()
-    for i in tqdm(range(10)):
-        simulate_1_step()
-    print(datetime.now()-start)
+    # test validation step
+    m = m.eval()
+    m.validation_step(batch,0)
     
-    #m.validation_step(batch, batch_idx=0)
+    
     
 
 

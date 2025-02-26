@@ -65,7 +65,7 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "NIR_GAN_SatCLIP" 
+    wandb_project = "NIR_GAN_SatCLIP_inject" 
     wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers

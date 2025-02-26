@@ -20,3 +20,5 @@ images/*
 utils/prepare_dataset.py
 images/
 *.csv
+playground/
+playground/*
