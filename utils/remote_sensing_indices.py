@@ -64,12 +64,12 @@ class RemoteSensingIndices():
             return(total_loss)
         
         elif mode=="logging_dict":
-            log_dict = {"indices_loss/ndvi_loss": ndvi_loss,
-                        "indices_loss/ndwi_loss": ndwi_loss,
-                        "indices_loss/gndvi_loss": gndvi_loss,
-                        "indices_loss/savi_loss": savi_loss,
-                        "indices_loss/msavi_loss": msavi_loss,
-                        "indices_loss/evi_loss": evi_loss}
+            log_dict = {"indices_loss/ndvi_error": ndvi_loss,
+                        "indices_loss/ndwi_error": ndwi_loss,
+                        "indices_loss/gndvi_error": gndvi_loss,
+                        "indices_loss/savi_error": savi_loss,
+                        "indices_loss/msavi_error": msavi_loss,
+                        "indices_loss/evi_error": evi_loss}
             return log_dict
         else:
             raise NotImplementedError(f"Mode '{mode}' not implemented. 'loss' or 'logging_dict' are supported.")
@@ -139,7 +139,7 @@ class RemoteSensingIndices():
         """
         rgb,nir,nir_pred= self.prepare_tensor_for_loss(rgb,nir,nir_pred)
         
-        # Compute NDVI
+        # Compute NDWI
         green = rgb[:,1:2,:,:]
         ndwi = (nir - green) / (nir + green)
         ndwi_pred = (nir_pred - green) / (nir_pred + green)

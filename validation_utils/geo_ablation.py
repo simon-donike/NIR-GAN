@@ -63,11 +63,40 @@ def final_touch(df,cols_to_keep=[]):
 
 def append_info_to_df(df):
     gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.x, df.y))
+    gdf = gdf.set_crs('EPSG:4326')
     gdf_original_cols = list(gdf.columns) # keep original columns
     gdf = get_countries(gdf)
     gdf = get_climate_zones(gdf)
     gdf = final_touch(gdf,cols_to_keep=gdf_original_cols)
     return(gdf)
+
+def clean_economy(df):
+    # economy class extraction
+    ls = df["ECONOMY"]
+    ls_ = []
+    k = {1:"Developed: G7",
+        2:"Developed: Non G7",
+        3:"Emerging: BRIC",
+        4:"Emerging: MIKT",
+        5:"Emerging: G20",
+        6:"Developing",
+        7:"Least Developed"}
+
+    for i in ls:
+        if type(i)==str:
+            num = int(i[0])
+        else:
+            num = 999
+
+        if num in k.keys():
+            ls_.append(k[num])
+        else:
+            ls_.append("Unknown")
+            
+    # remove column ECONOMY
+    df["economy"] = ls_
+    df = df.drop(columns=["ECONOMY"])
+    return(df)
 
 
 if __name__ == "__name__":

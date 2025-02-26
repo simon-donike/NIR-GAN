@@ -5,7 +5,7 @@ from omegaconf import OmegaConf
 import wandb
 from utils.calculate_metrics import calculate_metrics
 from utils.logging_helpers import plot_tensors_hist
-from utils.logging_helpers import plot_ndvi
+from utils.logging_helpers import plot_index
 #from model.pix2pix_model import Pix2PixModel
 #from model.base_model import BaseModel
 from model import networks
@@ -260,7 +260,7 @@ class Px2Px_PL(pl.LightningModule):
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
                 
                 if self.config.custom_configs.Logging.log_ndvi: # plot NDVI image
-                    ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                    ndvi_img = plot_index(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                     self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
                 
                 # Log Input and Prediction Value Statistics

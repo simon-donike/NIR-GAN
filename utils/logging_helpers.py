@@ -129,15 +129,21 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
     return pil_image
 
 
-def plot_ndvi(rgb, nir, pred_nir, title="Train"):
+def plot_index(rgb, nir, pred_nir, title="Train",index_name="NDVI"):
     rgb = rgb.clamp(0, 1)
+    # bring to 0..1 and clamp
+    nir = (nir+1)/2
     nir = nir.clamp(0, 1)
+    # bring to 0..1 and clamp
+    pred_nir = (pred_nir+1)/2
     pred_nir = pred_nir.clamp(0, 1)
 
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 3, figsize=(15, 5 * num_images_to_plot))
+    if num_images_to_plot==1: # expand if only 1 batch
+        axes = np.expand_dims(axes, 0)
     
-    fig.suptitle("R channel from RGB, structural information invalid.", fontsize=12, y=1.02)
+    #fig.suptitle("R channel from RGB, structural information invalid.", fontsize=12, y=1.02)
     for i in range(num_images_to_plot):
         # Prepare RGB and NIR images
         rgb_image = rgb[i].permute(1, 2, 0).cpu().numpy()  # Convert to (H, W, C)
@@ -162,11 +168,11 @@ def plot_ndvi(rgb, nir, pred_nir, title="Train"):
 
         # Plot NDVI of the actual NIR
         axes[i, 1].imshow(ndvi_actual, cmap='RdYlGn')
-        axes[i, 1].set_title('NDVI (Actual)')
+        axes[i, 1].set_title(f'{index_name} (Actual)')
 
         # Plot NDVI of the predicted NIR
         axes[i, 2].imshow(ndvi_pred, cmap='RdYlGn')
-        axes[i, 2].set_title('NDVI (Predicted)')
+        axes[i, 2].set_title(f'{index_name} (Predicted)')
 
     plt.tight_layout()
 
