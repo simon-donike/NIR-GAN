@@ -1,3 +1,6 @@
+validation.py
+validation_utils/
+validation_utils/*
 trashbin/
 trashbin/*
 validation_utils/images/
