@@ -1,11 +1,13 @@
-validation_utils
 validation.py
-validation_utils/
-validation_utils/*
 trashbin/
 trashbin/*
 validation_utils/images/
 validation_utils/images/*
+validation_utils/time_series_images/
+validation_utils/time_series_images/*
+validation_utils/*.png
+validation_utils/*.geojson
+validation_utils/*.csv
 *.tif
 __pycache__/
 wandb/

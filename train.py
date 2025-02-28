@@ -22,11 +22,10 @@ from model.pix2pix import Px2Px_PL
 if __name__ == '__main__':
 
     # General
-    #torch.set_float32_matmul_precision('medium')
-    #torch.backends.cuda.matmul.allow_tf32 = True
+    torch.set_float32_matmul_precision('medium')
 
     # load config
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
+    config = OmegaConf.load("configs/config_px2px.yaml") # SatCLIP
     #config = OmegaConf.load("configs/config_px2px.yaml") # Standard
 
     #############################################################################################################
@@ -65,7 +64,7 @@ if __name__ == '__main__':
     #############################################################################################################
     # set up logging
     from pytorch_lightning.loggers import WandbLogger
-    wandb_project = "NIR_GAN_SatCLIP_inject" 
+    wandb_project = config.custom_configs.Logging.wandb_project
     wandb_logger = WandbLogger(project=wandb_project)
 
     from pytorch_lightning import loggers as pl_loggers
@@ -82,7 +81,7 @@ if __name__ == '__main__':
                                             monitor=config.Schedulers.metric,
                                         mode='min',
                                         save_last=True,
-                                        save_top_k=2)
+                                        save_top_k=1)
 
     from pytorch_lightning.callbacks import LearningRateMonitor
     lr_monitor = LearningRateMonitor(logging_interval='epoch')

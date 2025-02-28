@@ -11,6 +11,7 @@ from utils.logging_helpers import plot_index
 from model import networks
 from utils.losses import ssim_loss
 from utils.losses import hist_loss
+from validation_utils.time_series_validaiton import calculate_and_plot_timeline
 
 
 class Px2Px_PL(pl.LightningModule):
@@ -256,7 +257,7 @@ class Px2Px_PL(pl.LightningModule):
                 
                 # log standard image visualizations, deep copy to avoid graph problems
                 val_img = plot_tensors_hist(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
-                ndvi_img = plot_ndvi(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
+                ndvi_img = plot_index(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                 self.logger.experiment.log({"Images/Val NIR":  wandb.Image(val_img)}) # log val image
                 
                 if self.config.custom_configs.Logging.log_ndvi: # plot NDVI image
@@ -278,6 +279,16 @@ class Px2Px_PL(pl.LightningModule):
                 if self.config.base_configs.lambda_rs_losses>0.0:
                     indices_dict = self.rs_losses.get_and_weight_losses(rgb,nir,nir_pred,mode="logging_dict")
                     self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
+                    
+    def on_validation_epoch_end(self):
+        # predict time series and get plot for WandB
+        pil_image = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                mean_patch_size=6)
+        if self.logger and hasattr(self.logger, 'experiment'):
+            self.logger.experiment.log({"Images/Val Timeline":  wandb.Image(pil_image)}) # log plot
+        else: # save to local if there is no logger being used
+            pil_image.save("validation_utils/timeline_plot_model.png")
                 
     def extract_batch(self, batch):
         """

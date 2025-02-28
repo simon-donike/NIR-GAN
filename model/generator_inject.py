@@ -66,7 +66,7 @@ class ResnetGenerator_inject(nn.Module):
         self.fc = nn.Linear(in_features=256, out_features=self.embed_fc_ou_square*self.embed_fc_ou_square)  # Example size, adjust accordingly
         
         # define learned scaling parameter for embeddings
-        self.scale_param = nn.Parameter(torch.tensor(1.0))
+        self.scale_param = nn.Parameter(torch.tensor(0.1))
 
         # build model
         self.model = nn.Sequential(*model)
