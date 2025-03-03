@@ -54,9 +54,9 @@ custom_configs:
     log_input_stats: True
   Model:
     load_checkpoint: False # Continue PL-Style
-    ckpt_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP_inject/selected_ckpts/r1_multiply_scale.ckpt"
+    ckpt_path: ""
     load_weights_only: False # Load ckpt file only
-    weights_path: "/data1/simon/GitHub/NIR_GAN/logs/NIR_GAN_SatCLIP/2025-02-14_14-48-13/epoch=51-step=414296.ckpt"
+    weights_path: ""
 
 # Optim Scheduler Settings
 Schedulers:

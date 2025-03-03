@@ -4,10 +4,11 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-
 import io
 from PIL import Image
 from rasterio.warp import transform
+from matplotlib.gridspec import GridSpec
+
 
 # surpress plotting warnings
 import logging
@@ -138,7 +139,7 @@ def plot_timeline(rgbs, nirs, nir_preds, timestamps,mean_patch_size=32):
     axs[0].set_xticklabels(timestamps_labels_graph, rotation=25)
     
     axs[0].legend()
-    axs[0].set_title("Centroid NIR vs. Predicted NIR over Time")
+    axs[0].set_title("NIR vs. Predicted NIR")
     axs[1].axis("off")
 
     # --- Row of 6 RGB images (without axes) ---
@@ -203,13 +204,150 @@ def plot_timeline(rgbs, nirs, nir_preds, timestamps,mean_patch_size=32):
     return pil_image
     
 
-def calculate_and_plot_timeline(model=None,device=None,mean_patch_size=16):
+
+def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
+    """
+    Plots a timeline of centroid NDVI values (true and predicted) and rows of images: 
+    RGB, NDVI (True), and NDVI (Predicted).
+    """
+    # Crop center for plotting
+    h, w = rgbs.shape[-1], rgbs.shape[-2]
+    cx, cy = w // 2, h // 2
+    plot_patch_size = 64
+    plot_patch_size_half = plot_patch_size // 2
+    x1, y1 = max(cx - plot_patch_size_half, 0), max(cy - plot_patch_size_half, 0)
+    x2, y2 = min(cx + plot_patch_size_half, w), min(cy + plot_patch_size_half, h)
+
+    rgbs = rgbs[:, :, y1:y2, x1:x2]
+    nirs = nirs[:, :, y1:y2, x1:x2]
+    nir_preds = nir_preds[:, :, y1:y2, x1:x2]
+
+    num_samples = len(timestamps)
+    _, h, w = nirs.shape[1:]
+    cx, cy = w // 2, h // 2
+    patch_size = mean_patch_size // 2
+
+    # Extract Red channel (assuming Red is at index 0)
+    reds = rgbs[:, 0, :, :]
+
+    # Compute NDVI and NDVI predictions
+    def compute_ndvi(nir, red):
+        return (nir - red) / (nir + red + 1e-6)  # Avoid division by zero
+
+    ndvi_true = compute_ndvi(nirs[:, 0, :, :], reds)
+    ndvi_pred = compute_ndvi(nir_preds[:, 0, :, :], reds)
+    
+    # Define the window size for NDVI computation
+    mean_patch_half = mean_patch_size // 2
+    shift = 3  # Number of pixels to shift
+    x1, y1 = max(cx - mean_patch_half - shift, 0), max(cy - mean_patch_half - shift, 0)
+    x2, y2 = min(cx + mean_patch_half - shift, w), min(cy + mean_patch_half - shift, h)
+    """
+    # Compute centroid mean NDVI values
+    centroid_ndvi_true = [
+        ndvi_true[i, cy - patch_size : cy + patch_size, cx - patch_size : cx + patch_size].mean().item()
+        for i in range(num_samples)]
+    centroid_ndvi_pred = [
+        ndvi_pred[i, cy - patch_size : cy + patch_size, cx - patch_size : cx + patch_size].mean().item()
+        for i in range(num_samples)]
+    """
+    # Compute centroid mean NDVI values
+    centroid_ndvi_true = [ndvi_true[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
+    centroid_ndvi_pred = [ndvi_pred[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
+
+    
+    # Define figure and GridSpec layout
+    num_images = min(6, num_samples)
+    selected_indices = np.linspace(0, num_samples - 1, num_images, dtype=int)
+    fig = plt.figure(figsize=(12, 10))
+    gs = GridSpec(4, num_images, height_ratios=[1.8, 1, 1, 1])  # 4 rows: Graph, RGB, NDVI True, NDVI Pred
+
+    # --- Line plot for NDVI values ---
+    ax_graph = fig.add_subplot(gs[0, :])  # Use the full width for the graph
+    ax_graph.plot(timestamps, centroid_ndvi_true, marker="o", label="NDVI (true)", linestyle="-", color="blue")
+    ax_graph.plot(timestamps, centroid_ndvi_pred, marker="s", label="NDVI (pred.)", linestyle="--", color="red")
+    ax_graph.set_ylabel("NDVI",fontweight="bold",fontsize=12)
+    ax_graph.set_ylim(-1, 1)
+    ax_graph.set_xticks(range(len(timestamps)),)
+    ax_graph.set_xticklabels([f"{t[:4]}-{t[4:6]}-{t[6:]}" for t in timestamps], rotation=25)
+    ax_graph.legend()
+    ax_graph.set_title("NDVI vs. Predicted NDVI over Time")
+    # **Move x-ticks to the top**
+    ax_graph.tick_params(axis="x", pad=-36,direction="in")  # Moves x-ticks up slightly
+
+
+    # Define datasets, colormaps, and row labels
+    datasets = [rgbs, ndvi_true, ndvi_pred]
+    cmaps = [None, "viridis", "viridis"]
+    titles = ["RGB", "NDVI (True)", "NDVI (Pred.)"]
+
+    # Loop through image types and create plots
+    for row, (dataset, cmap, title) in enumerate(zip(datasets, cmaps, titles)):
+        for col, idx in enumerate(selected_indices):
+            ax = fig.add_subplot(gs[row + 1, col])  # Place in the correct row
+
+            img = dataset[idx]
+
+            if row == 0:  # RGB
+                img = img.permute(1, 2, 0).numpy() * 5
+                img = np.clip(img, 0, 1)
+            else:  # NDVI images
+                img = img.numpy()
+                img = (img - img.min()) / (img.max() - img.min())  # Normalize for visualization
+
+            ax.imshow(img, cmap=cmap)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+            if row == 0 or row == 1:
+                ax.set_xlabel("")  # No labels for RGB row
+            else:
+                ax.set_xlabel(
+                    timestamps[idx][:4] + "-" + timestamps[idx][4:6] + "-" + timestamps[idx][6:], 
+                    fontsize=10
+                )
+
+            """
+            # Define red box (centroid mean patch)
+            mean_patch_half = mean_patch_size // 2
+            box_x1 = (plot_patch_size // 2) - mean_patch_half
+            box_y1 = (plot_patch_size // 2) - mean_patch_half
+
+            # Create red rectangle
+            rect = patches.Rectangle((box_x1, box_y1), mean_patch_size, mean_patch_size, 
+                                     linewidth=2, edgecolor='red', facecolor='none')
+            ax.add_patch(rect)
+            """
+            box_x1 = (plot_patch_size // 2) - mean_patch_half - shift
+            box_y1 = (plot_patch_size // 2) - mean_patch_half - shift
+
+            # Create red rectangle
+            rect = patches.Rectangle((box_x1, box_y1), mean_patch_size, mean_patch_size, 
+                                    linewidth=2, edgecolor='red', facecolor='none')
+            ax.add_patch(rect)
+
+
+            # Add row title on the leftmost column
+            if col == 0:
+                ax.set_ylabel(title, fontsize=12, rotation=90, labelpad=15,fontweight="bold")
+
+    plt.tight_layout()
+    plt.subplots_adjust(hspace=0.05)  # Decrease space between image rows
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100)
+    buf.seek(0)
+    pil_image = Image.open(buf)
+    plt.close()
+    return pil_image
+
+def calculate_and_plot_timeline(model=None,device=None,mean_patch_size=4):
     r,n,p,t  = get_pred_nirs_and_info(model,device)
-    im = plot_timeline(r,n,p,t,mean_patch_size)
+    im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=mean_patch_size)
     return im
 
 
 if __name__ == "__main__":
     r,n,p,t  = get_pred_nirs_and_info(None)
-    im = plot_timeline(r,n,p,t,mean_patch_size=16)
-    im.save("validation_utils/timeline_plot.png")
+    im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=4)
+    im.save("validation_utils/timeline_ndvi_plot.png")
