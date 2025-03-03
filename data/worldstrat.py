@@ -12,8 +12,9 @@ import geopandas as gpd
 
 # Step 1: Define a custom dataset
 class worldstrat_ds(Dataset):
-    def __init__(self, config,metadata_csv="/data1/simon/GitHub/worldstrat/pretrained_model/metadata_ablation.geojson"):
+    def __init__(self, config,image_source="hr",metadata_csv="/data1/simon/GitHub/worldstrat/pretrained_model/metadata_ablation.geojson"):
         self.data = gpd.read_file(metadata_csv)
+        self.image_source = image_source
         self.hr_base_path = "/data2/simon/worldstrat/hr_dataset/"
         self.lr_base_path = "/data2/simon/worldstrat/lr_dataset/"
 
@@ -85,20 +86,23 @@ class worldstrat_ds(Dataset):
         # get ID
         id_ = self.data.iloc[index]["id"]
         # Fetch data at a specific index
-        #lr = self.get_lr(index)
-        hr = self.get_hr(index)
-        hr = hr / 10000
+        if self.image_source == "lr":
+            im = self.get_lr(index)
+            im = im / 10000
+        elif self.image_source == "hr":
+            im = self.get_hr(index)
+            im = im / 10000
+            im = self.change_resolution(im, factor=0.6) # go from 1.5 to 2.5m resolution for HR image
 
-        # go from 1.5 to 2.5m resolution for HR image
-        hr = self.change_resolution(hr, factor=0.6)
-        
+        #print(self.image_source,":",im.shape,im.mean())
+
         # crop to square, crop center to desired size of 128/512
-        hr = self.crop_square(hr)
-        hr = self.crop_center(hr,512)
+        im = self.crop_square(im)
+        im = self.crop_center(im,512)
         
         # extract bands
-        rgb = hr[:3,:,:]
-        nir = hr[3:,:,:]
+        rgb = im[:3,:,:]
+        nir = im[3:,:,:]
 
         return_dict = {"rgb":rgb,"nir":nir}
 

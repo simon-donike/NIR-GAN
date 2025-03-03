@@ -58,8 +58,8 @@ custom_configs:
 # Optim Scheduler Settings
 Schedulers:
   metric: 'val/L1'
-  patience_g: 100
-  patience_d: 100
+  patience_g: 10
+  patience_d: 10
   factor_g: 0.5
   factor_d: 0.5
   verbose: True
@@ -93,4 +93,10 @@ Data:
     image_size: 512
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
-    no_images: 50000
+    no_images: 5000
+  S2_75k:
+    image_size: 512
+    base_path: "/data2/simon/nirgan_s2/"
+  worldstrat_settings:
+    image_size: 512
+    return_coords: True

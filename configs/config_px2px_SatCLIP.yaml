@@ -84,7 +84,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'mixed' # ['S2NAIP', 'S2_rand', 'mixed']
+  dataset_type: 'S2_75k' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:
@@ -96,7 +96,11 @@ Data:
     image_size: 512
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
-    no_images: 50000
+    no_images: 5000
+  S2_75k:
+    image_size: 512
+    base_path: "/data2/simon/nirgan_s2/"
+    return_coords: True
   worldstrat_settings:
     image_size: 512
     return_coords: True

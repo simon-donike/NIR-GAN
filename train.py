@@ -97,7 +97,7 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[2,3],
+                    devices=[0,1,2,3],
                     strategy="ddp",  #Doesnt work for SatCLIP workflow: Device issue of satclip model vs others
                     check_val_every_n_epoch=1,
                     #val_check_interval=0.25,

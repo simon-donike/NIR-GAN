@@ -239,9 +239,10 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
     
     # Define the window size for NDVI computation
     mean_patch_half = mean_patch_size // 2
-    shift = 3  # Number of pixels to shift
-    x1, y1 = max(cx - mean_patch_half - shift, 0), max(cy - mean_patch_half - shift, 0)
-    x2, y2 = min(cx + mean_patch_half - shift, w), min(cy + mean_patch_half - shift, h)
+    shift_x = 3  # Number of pixels to shift
+    shift_y = 10  # Number of pixels to shift
+    x1, y1 = max(cx - mean_patch_half - shift_x, 0), max(cy - mean_patch_half - shift_y, 0)
+    x2, y2 = min(cx + mean_patch_half - shift_x, w), min(cy + mean_patch_half - shift_y, h)
     """
     # Compute centroid mean NDVI values
     centroid_ndvi_true = [
@@ -318,8 +319,8 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
                                      linewidth=2, edgecolor='red', facecolor='none')
             ax.add_patch(rect)
             """
-            box_x1 = (plot_patch_size // 2) - mean_patch_half - shift
-            box_y1 = (plot_patch_size // 2) - mean_patch_half - shift
+            box_x1 = (plot_patch_size // 2) - mean_patch_half - shift_x
+            box_y1 = (plot_patch_size // 2) - mean_patch_half - shift_y
 
             # Create red rectangle
             rect = patches.Rectangle((box_x1, box_y1), mean_patch_size, mean_patch_size, 

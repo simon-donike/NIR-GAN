@@ -12,6 +12,9 @@ def dataset_selector(config):
     elif dataset_type == "worldstrat":
         from data.worldstrat import worldstrat_ds
         return worldstrat_ds(config)
+    elif dataset_type == "S2_75k":
+        from data.s2_75k_dataset import S2_75k_datamodule
+        return S2_75k_datamodule(config)
     elif dataset_type == "mixed":
         from data.combined_datasets import CombinedDataModule
         return CombinedDataModule(config)
