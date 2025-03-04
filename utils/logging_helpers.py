@@ -76,8 +76,13 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
     rgb = minmax_percentile(rgb,perc=2)
     
     # Crop Middle
+    if rgb.shape[-1]<350: # assume input images are 256x256
+        crop_size = 256
+    else:
+        crop_size = 512
+
     B, C, H, W = rgb.shape
-    crop_height, crop_width = 500, 500
+    crop_height, crop_width = crop_size, crop_size
     start_x = (W - crop_width) // 2
     start_y = (H - crop_height) // 2
     rgb = rgb[:,:, start_y:start_y+crop_height, start_x:start_x+crop_width]

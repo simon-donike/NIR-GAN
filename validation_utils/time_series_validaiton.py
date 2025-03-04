@@ -16,7 +16,7 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 
 
-def get_pred_nirs_and_info(model=None,device=None):
+def get_pred_nirs_and_info(model=None,device=None,size_input=256):
     
     reset_model_mode = False
     if model!=None and model.training:
@@ -55,9 +55,10 @@ def get_pred_nirs_and_info(model=None,device=None):
             coords = torch.Tensor([lon, lat])        
                 
             # Crop center 512x512
+            size_input_half = size_input//2
             cx, cy = w // 2, h // 2
-            x1, y1 = max(cx - 256, 0), max(cy - 256, 0)
-            x2, y2 = min(cx + 256, w), min(cy + 256, h)
+            x1, y1 = max(cx - size_input_half, 0), max(cy - size_input_half, 0)
+            x2, y2 = min(cx + size_input_half, w), min(cy + size_input_half, h)
             cropped_img = img[:, y1:y2, x1:x2]  # Keep bands dimension
             
             # turn to float16 and replace nan with 0
@@ -342,8 +343,8 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
     plt.close()
     return pil_image
 
-def calculate_and_plot_timeline(model=None,device=None,mean_patch_size=4):
-    r,n,p,t  = get_pred_nirs_and_info(model,device)
+def calculate_and_plot_timeline(model=None,device=None,size_input=256,mean_patch_size=4):
+    r,n,p,t  = get_pred_nirs_and_info(model,device,size_input=size_input)
     im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=mean_patch_size)
     return im
 

@@ -284,6 +284,7 @@ class Px2Px_PL(pl.LightningModule):
         # predict time series and get plot for WandB
         pil_image = calculate_and_plot_timeline(model = self,
                                                 device=self.device,
+                                                size_input=self.config.Data.S2_100k.image_size,
                                                 mean_patch_size=4)
         if self.logger and hasattr(self.logger, 'experiment'):
             self.logger.experiment.log({"Images/Val Timeline":  wandb.Image(pil_image)}) # log plot

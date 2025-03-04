@@ -53,12 +53,6 @@ if __name__ == '__main__':
     from data.select_dataset import dataset_selector
     pl_datamodule = dataset_selector(config)
 
-    # Do a test on model and datalaoder + visualzation
-    if False:
-        from utils.test_dataset import save_ds_image
-        save_ds_image(pl_datamodule,model)
-
-
     #############################################################################################################
     """ Configure Trainer """
     #############################################################################################################
