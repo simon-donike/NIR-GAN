@@ -35,11 +35,11 @@ class RemoteSensingIndices():
         """
         
         if loss_config==None: # if no config, define default
-            loss_config = {"lambda_ndvi": 0.2,
-                "lambda_ndwi": 0.2,
-                "lambda_evi": 0.2,
-                "lambda_savi": 0.2,
-                "lambda_msavi": 0.2,
+            loss_config = {"lambda_ndvi": 0.333,
+                "lambda_ndwi": 0.333,
+                "lambda_evi": 0.333,
+                "lambda_savi": 0.0,
+                "lambda_msavi": 0.0,
                 "lambda_gndvi": 0.0}
             
         # calculate losses

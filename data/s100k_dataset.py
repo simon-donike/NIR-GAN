@@ -8,8 +8,9 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from pyproj import Transformer
+from tqdm import tqdm
 
-class S2_75k(Dataset):
+class S2_100k(Dataset):
     def __init__(self, config, phase="train"):
         """
         Args:
@@ -18,9 +19,10 @@ class S2_75k(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.config = config
-        self.root_dir = self.config.Data.S2_75k.base_path
-        self.patch_size = self.config.Data.S2_75k.image_size
+        self.root_dir = self.config.Data.S2_100k.base_path
+        self.patch_size = self.config.Data.S2_100k.image_size
         self.phase=phase
+        assert self.patch_size == 256, "Only 512x512 patches are supported for Sentinel-2 100k dataset."
         
         # read all files in directory
         self.image_paths = []
@@ -33,10 +35,10 @@ class S2_75k(Dataset):
         
         # Set train/test/split
         if self.phase=="train":
-            self.image_paths = self.image_paths[:-100]
+            self.image_paths = self.image_paths[:-5000]
         if self.phase=="val":
-            self.image_paths = self.image_paths[-100:]
-        print(f"Instanciated S2_75k dataset with {len(self.image_paths)} datapoints for phase: {self.phase}")
+            self.image_paths = self.image_paths[-5000:]
+        print(f"Instanciated S2_100k dataset with {len(self.image_paths)} datapoints for phase: {self.phase}")
         
         # shuffle list after split
         random.shuffle(self.image_paths)
@@ -44,43 +46,45 @@ class S2_75k(Dataset):
         # set padding settings
         if self.config.Data.padding:
             self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+
+        # set up error list that will hold the lists of indices that failed to load
+        self.error_idx = []
         
     def __len__(self):
         return len(self.image_paths)
     
     def __getitem__(self, idx):
-        
+        # If this idx is in the error list, return a random image
+        if idx in self.error_idx:
+            print("Error cought, returning random image")
+            rand_idx = random.randint(0,len(self.image_paths)-1)
+            return self.__getitem__(rand_idx)
+
+        # try reading image, if it fails, add to error list and return random image
         try:
             with rasterio.open(self.image_paths[idx]) as src:
                 # Get image dimensions
-                width = src.width
-                height = src.height
-                
-                # Ensure the patch fits within the image boundaries
-                x_max = width - self.patch_size
-                y_max = height - self.patch_size
+                rgb_nir_bands = [2, 3, 4, 8]
+                patch = src.read(rgb_nir_bands)
 
-                # Randomly select from top-left corner of the patch
-                x = random.randint(0, x_max)
-                y = random.randint(0, y_max)
-                
-                patch = src.read(window=((y, y + self.patch_size), (x, x + self.patch_size)))
-
-                if self.config.Data.S2_75k.return_coords:
+                if self.config.Data.S2_100k.return_coords:
                     # get centroid lon/lat
                     crs = src.crs
                     trans = src.transform
-                    centroid_x = x + self.patch_size / 2
-                    centroid_y = y + self.patch_size / 2
+                    centroid_x = self.patch_size / 2
+                    centroid_y = self.patch_size / 2
                     geo_x, geo_y = trans * (centroid_x, centroid_y)
                     transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
                     lon, lat = transformer.transform(geo_x, geo_y)
                     coords = torch.Tensor([lon,lat])
-        except TypeError:
-            print("Error reading file:",self.image_paths[idx], "Skipping...")
+        except Exception as e:
+            print("Error reading file:",self.image_paths[idx], "Error:",e)
+            self.error_idx.append(idx)
             rand_idx = random.randint(0,len(self.image_paths)-1)
             return self.__getitem__(rand_idx)
+        
 
+        # After successful reading, do preprocessing and return
         # turn to 0..1
         patch = patch / 10000.0
         patch = torch.from_numpy(patch).float()
@@ -95,18 +99,31 @@ class S2_75k(Dataset):
         batch = {"rgb": rgb, "nir": nir}
         if self.config.Data.S2_rand_settings.return_coords:
             batch["coords"] = coords
-            
+            batch["path"] = self.image_paths[idx]
+
+        # do percentage 
+        do_percenteage_check = False
+        if do_percenteage_check:
+            num_zeros = torch.sum(rgb == 0.00).item()
+            total_elements = rgb.numel()
+            percentage_zeros = (num_zeros / total_elements) * 100
+            if percentage_zeros > 15.:
+                print("Error, too many 0.0s :",self.image_paths[idx])
+                self.error_idx.append(idx)
+                rand_idx = random.randint(0,len(self.image_paths)-1)
+                return self.__getitem__(rand_idx)
+        
         return(batch)
                 
                 
                 
-class S2_75k_datamodule(pl.LightningDataModule):
+class S2_100k_datamodule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
         # Initialize the dataset
-        self.dataset_train = S2_75k(self.config,phase="train")
-        self.dataset_val = S2_75k(self.config,phase="val")
+        self.dataset_train = S2_100k(self.config,phase="train")
+        self.dataset_val = S2_100k(self.config,phase="val")
         
 
     def train_dataloader(self):        
@@ -121,16 +138,11 @@ class S2_75k_datamodule(pl.LightningDataModule):
 
 if __name__=="__main__":
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-    ds = S2_75k(config)
-    dm = S2_75k_datamodule(config)
+    ds = S2_100k(config)
+    dm = S2_100k_datamodule(config)
     batch = next(iter(dm.train_dataloader()))
     coords = batch["coords"]
 
-    from tqdm import tqdm
-    for i in tqdm(dm.train_dataloader()):
-        pass
 
-    for i in ds.image_paths:
-        if type(i) != str:
-            print(i)
-        
+    for batch in tqdm(dm.train_dataloader()):
+        pass

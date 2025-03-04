@@ -45,7 +45,7 @@ satclip:
 # Logging and PL-Trainer Settings
 custom_configs:
   Logging:
-    wandb_project: "exp_NIR_GAN"
+    wandb_project: "exp_NIR_GAN" #"exp_NIR_GAN"
     num_val_images: 1
     log_ndvi: False
     log_input_stats: True
@@ -53,7 +53,7 @@ custom_configs:
     load_checkpoint: True # Continue PL-Style
     ckpt_path: "logs/exp_NIR_GAN/2025-03-02_09-04-10/last.ckpt"
     load_weights_only: False # Load ckpt file only
-    weights_path: "logs/NIR_GAN/checkpoints_selection/best_version_v1.ckpt"
+    weights_path: "/data1/simon/GitHub/NIR_GAN/logs/exp_NIR_GAN/2025-03-02_09-04-10/epoch=134-step=311708.ckpt"
 
 # Optim Scheduler Settings
 Schedulers:
@@ -81,22 +81,27 @@ Data:
   padding_amount: 5
 
   # Detailed Dataset Setttings
-  dataset_type: 'mixed' # ['S2NAIP', 'S2_rand', 'mixed']
+  dataset_type: 'S2_100k' # ['S2NAIP', 'S2_rand', 'mixed','S2_100k']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   # Individual Dataset settings
   sen2naip_settings:
-    image_size: 512
+    image_size: 256
     base_path: "/data2/simon/"
     dataset_type: "synthetic2"
     return_coords: True
   S2_rand_settings:
-    image_size: 512
+    image_size: 256
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
-    no_images: 5000
+    no_images: 1000
   S2_75k:
-    image_size: 512
+    image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
+    return_coords: True
+  S2_100k:
+    image_size: 256
+    base_path: "/data2/simon/s100k/images/"
+    return_coords: True
   worldstrat_settings:
-    image_size: 512
+    image_size: 256
     return_coords: True

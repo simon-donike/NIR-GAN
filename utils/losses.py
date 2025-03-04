@@ -62,11 +62,11 @@ def hist_loss(image1, image2, bins=256):
 
 if __name__ == "__main__":
     a,b = torch.rand(1,1,512,512), torch.rand(1,1,512,512)+0.1
-    l = ssim_loss(a,b)
-    print("SSIM Loss:", l)
+    ssim = ssim_loss(a,b)
+    print("SSIM Loss:", ssim)
     
-    l2 = hist_loss(a,b)
-    print("Hist Loss:", l2)
+    emd = hist_loss(a,b)
+    print("Hist Loss:", emd)
     
 
 

@@ -88,19 +88,23 @@ Data:
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:
-    image_size: 512
+    image_size: 256
     base_path: "/data2/simon/"
     dataset_type: "synthetic2"
     return_coords: True
   S2_rand_settings:
-    image_size: 512
+    image_size: 256
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
-    no_images: 5000
+    no_images: 1000
   S2_75k:
-    image_size: 512
+    image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
     return_coords: True
+  S2_100k:
+    image_size: 256
+    base_path: "/data2/simon/s100k/images/"
+    return_coords: True
   worldstrat_settings:
-    image_size: 512
+    image_size: 256
     return_coords: True

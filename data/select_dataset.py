@@ -15,9 +15,14 @@ def dataset_selector(config):
     elif dataset_type == "S2_75k":
         from data.s2_75k_dataset import S2_75k_datamodule
         return S2_75k_datamodule(config)
+    elif dataset_type == "S2_100k":
+        from data.s100k_dataset import S2_100k_datamodule
+        return S2_100k_datamodule(config)
+    
     elif dataset_type == "mixed":
         from data.combined_datasets import CombinedDataModule
         return CombinedDataModule(config)
+    
     else:
         raise NotImplementedError(f"Dataset Type {dataset_type} not implemented")
     
@@ -25,21 +30,11 @@ if __name__=="__main__":
     from omegaconf import OmegaConf
     import torch
 
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+    config = OmegaConf.load("configs/config_px2px.yaml")
     dm = dataset_selector(config)
     
     batch = next(iter(dm.train_dataloader()))
     coords = batch["coords"]    
 
-    # Write out coordinates to verify lon/lats
-    import pandas as pd
-    import numpy as np
-    from tqdm import tqdm
-    for v,batch in tqdm(enumerate(dm.train_dataloader()),total=len(dm.train_dataloader())):
-        coords = torch.cat((coords,batch["coords"]),dim=0)
-    coords = coords.cpu().numpy()
-    df = pd.DataFrame(coords)
-    df.columns = ["lon","lat"]
-    df.to_csv("coords_mixed.csv",index=True)
 
 
