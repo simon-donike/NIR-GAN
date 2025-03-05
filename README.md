@@ -22,6 +22,8 @@ In this scenario, synthesizing the NIR band from RGB bands is crucial. By using 
   
 - **Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands, as well as derivative Indices like NDVI, NDWI, and EVI.
 
+- **Time-Series of NDVI development**: Track NDVI over crop cycles and sasonality.
+
 ## Training Data
 The model is trained using
 - a collection of worldwide-sampled Landsat-8 and Sentinel-2 images,
@@ -38,9 +40,9 @@ from which the RGB inputs and the corresponding NIR band have been extracted. Th
 
 
   
-- **Input Data**: Sentinel-2-like 2.5m RGB Bands, used as input to the generator to synthesize the NIR band.
-- **Target Data**: Sentinel-2-like 2.5m NIR Band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.  
-Note: The spectral range of the input data is in the domain of Sentinel-2 images.  
+- **Input Data**: RGB bands, used as input to the generator to synthesize the NIR band.
+- **Target Data**: NIR band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.  
+Note: The spectral range of most of the input data is in the domain of Sentinel-2 images.  
 
 ### Output Data
 - **Synthetic NIR Images**: Generated NIR bands based solely on the input RGB bands, with Sentinel-2-like spectral charachteristics.
@@ -81,3 +83,4 @@ Features:
 [2] [worldstrat](https://worldstrat.github.io/)  
 [3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
 [4] [SatCLIP](https://github.com/microsoft/satclip)
+[5] [S100K](https://github.com/microsoft/satclip?tab=readme-ov-file#use-of-the-s2-100k-dataset)
