@@ -45,7 +45,7 @@ class S2_100k(Dataset):
 
         # Filter Dataset
         self.metadata = self.metadata[self.metadata.valid==True] # filter for valid images
-        self.metadata = self.metadata[self.metadata.null_percentage<=100] # filter for null value percentage
+        self.metadata = self.metadata[self.metadata.null_percentage<=15] # filter for null value percentage
         # Set train/test/split
         self.metadata = self.metadata[self.metadata.split==self.phase]
             

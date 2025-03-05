@@ -3,6 +3,12 @@ trashbin/
 trashbin/*
 validation_utils/images/
 validation_utils/images/*
+validation_utils/world_metrics_old/
+validation_utils/world_metrics_old/*
+validation_utils/time_series_bavaria/
+validation_utils/time_series_texas/
+validation_utils/time_series_michigan/
+validation_utils/world_metrics_old/
 validation_utils/time_series_images/
 validation_utils/time_series_images/*
 validation_utils/*.png

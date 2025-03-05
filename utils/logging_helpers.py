@@ -77,9 +77,9 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
     
     # Crop Middle
     if rgb.shape[-1]<350: # assume input images are 256x256
-        crop_size = 256
+        crop_size = 240
     else:
-        crop_size = 512
+        crop_size = 500
 
     B, C, H, W = rgb.shape
     crop_height, crop_width = crop_size, crop_size
@@ -127,7 +127,7 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
 
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=100)
+    plt.savefig(buf, format='png', dpi=60)
     buf.seek(0)
     pil_image = Image.open(buf)
     plt.close()
@@ -135,13 +135,13 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
 
 
 def plot_index(rgb, nir, pred_nir, title="Train",index_name="NDVI"):
-    rgb = rgb.clamp(0, 1)
+    #rgb = rgb.clamp(0, 1)
     # bring to 0..1 and clamp
-    nir = (nir+1)/2
-    nir = nir.clamp(0, 1)
+    #nir = (nir+1)/2
+    #nir = nir.clamp(0, 1)
     # bring to 0..1 and clamp
-    pred_nir = (pred_nir+1)/2
-    pred_nir = pred_nir.clamp(0, 1)
+    #pred_nir = (pred_nir+1)/2
+    #pred_nir = pred_nir.clamp(0, 1)
 
     num_images_to_plot = min(pred_nir.shape[0], 5)
     fig, axes = plt.subplots(num_images_to_plot, 3, figsize=(15, 5 * num_images_to_plot))
@@ -183,7 +183,7 @@ def plot_index(rgb, nir, pred_nir, title="Train",index_name="NDVI"):
 
     # Save and return image
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=100)
+    plt.savefig(buf, format='png', dpi=60)
     buf.seek(0)
     pil_image = Image.open(buf)
     plt.close()

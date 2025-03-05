@@ -16,14 +16,14 @@ logging.getLogger("matplotlib").setLevel(logging.ERROR)
 
 
 
-def get_pred_nirs_and_info(model=None,device=None,size_input=256):
+def get_pred_nirs_and_info(model=None,device=None,root_dir="validation_utils/time_series_bavaria/*.tif",size_input=256):
     
     reset_model_mode = False
     if model!=None and model.training:
         model = model.eval()
         reset_model_mode = True
     
-    tif_files = glob.glob("validation_utils/time_series_images/*.tif")
+    tif_files = glob.glob(root_dir)
     # sort
     tif_files = sorted(tif_files)
     
@@ -256,7 +256,6 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
     # Compute centroid mean NDVI values
     centroid_ndvi_true = [ndvi_true[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
     centroid_ndvi_pred = [ndvi_pred[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
-
     
     # Define figure and GridSpec layout
     num_images = min(6, num_samples)
@@ -279,6 +278,13 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
 
 
     # Define datasets, colormaps, and row labels
+    # stretchings for plotting
+    ndvi_true = (np.array(ndvi_true)+1)/2
+    ndvi_pred = (np.array(ndvi_pred)+1)/2
+    ndvi_true = np.clip(ndvi_true, 0, 1)
+    rgbs = rgbs*5
+    rgbs = np.clip(rgbs, 0, 1)
+    centroid_ndvi_pred = np.clip(centroid_ndvi_pred, 0, 1)
     datasets = [rgbs, ndvi_true, ndvi_pred]
     cmaps = [None, "viridis", "viridis"]
     titles = ["RGB", "NDVI (True)", "NDVI (Pred.)"]
@@ -291,10 +297,9 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
             img = dataset[idx]
 
             if row == 0:  # RGB
-                img = img.permute(1, 2, 0).numpy() * 5
+                img = img.permute(1, 2, 0).numpy()
                 img = np.clip(img, 0, 1)
             else:  # NDVI images
-                img = img.numpy()
                 img = (img - img.min()) / (img.max() - img.min())  # Normalize for visualization
 
             ax.imshow(img, cmap=cmap)
@@ -343,8 +348,8 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
     plt.close()
     return pil_image
 
-def calculate_and_plot_timeline(model=None,device=None,size_input=256,mean_patch_size=4):
-    r,n,p,t  = get_pred_nirs_and_info(model,device,size_input=size_input)
+def calculate_and_plot_timeline(model=None,device=None,root_dir="validation_utils/time_series_bavaria/*.tif",size_input=256,mean_patch_size=4):
+    r,n,p,t  = get_pred_nirs_and_info(model,device,root_dir,size_input=size_input)
     im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=mean_patch_size)
     return im
 

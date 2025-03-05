@@ -1,5 +1,6 @@
 from tqdm import tqdm
 from data.worldstrat import worldstrat_ds
+from data.s100k_dataset import S2_100k
 from omegaconf import OmegaConf
 from torch.utils.data import DataLoader
 import os
@@ -18,14 +19,16 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 device = "cpu"
 
 # Get Data
-config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-ds = worldstrat_ds(config)
+config = OmegaConf.load("configs/config_px2px.yaml")
+
+#ds = worldstrat_ds(config)
+ds = S2_100k(config,phase="val")
 dl = DataLoader(ds, batch_size=1, shuffle=True, num_workers=0)
 
 # Load Model
 from model.pix2pix import Px2Px_PL
 model = Px2Px_PL(config)
-ckpt = torch.load(config.custom_configs.Model.weights_path)
+ckpt = torch.load(config.custom_configs.Model.weights_path,map_location=device)
 model.load_state_dict(ckpt['state_dict'])
 model = model.eval()
 print("Loaded (only) Weights from:",config.custom_configs.Model.weights_path)
@@ -53,9 +56,9 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
     pred = model.predict_step(rgb,coords)
 
     # crop center
-    rgb = crop_center(rgb.squeeze(0),450).unsqueeze(0)
-    nir = crop_center(nir.squeeze(0),450).unsqueeze(0)
-    pred = crop_center(pred.squeeze(0),450).unsqueeze(0)
+    rgb = crop_center(rgb.squeeze(0),240).unsqueeze(0)
+    nir = crop_center(nir.squeeze(0),240).unsqueeze(0)
+    pred = crop_center(pred.squeeze(0),240).unsqueeze(0)
 
     # get info
     x = coords[0][0].item()
@@ -109,7 +112,7 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
     # save metrics
     df = pd.DataFrame(metrics_dict)
     if id_%25==0:
-        df.to_csv("validation_utils/worldstrat_metrics.csv")
+        df.to_csv("validation_utils/validation_metrics.csv")
         
     # break logic
     if v==50:
@@ -123,4 +126,4 @@ gdf = clean_economy(gdf)
 gdf = gdf.loc[:, ~gdf.columns.duplicated()] # remove double geo column
     
 # save final version with context info
-gdf.to_file("validation_utils/worldstrat_metrics.geojson",driver='GeoJSON')
+gdf.to_file("validation_utils/validation_metrics_ablation.geojson",driver='GeoJSON')

@@ -79,12 +79,13 @@ class SEN2NAIPv2(Dataset):
         nir = hr[3,:,:]
         
         # apply augmentation
-        if self.phase in ["train","validation"]:
-            nir = nir.unsqueeze(0)
-            rgb,nir = self.augment_images(rgb.numpy(),nir.numpy())
-            rgb = torch.tensor(rgb).float()
-            nir = torch.tensor(nir).float().squeeze(0)
-            
+        if False:
+            if self.phase in ["train","validation"]:
+                nir = nir.unsqueeze(0)
+                rgb,nir = self.augment_images(rgb.numpy(),nir.numpy())
+                rgb = torch.tensor(rgb).float()
+                nir = torch.tensor(nir).float().squeeze(0)
+                
         # apply padding
         if self.config.Data.padding:
             rgb = self.pad(rgb)

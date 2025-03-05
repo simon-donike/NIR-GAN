@@ -11,7 +11,7 @@ from utils.logging_helpers import plot_index
 from model import networks
 from utils.losses import ssim_loss
 from utils.losses import hist_loss
-from validation_utils.time_series_validaiton import calculate_and_plot_timeline
+from validation_utils.time_series_validation import calculate_and_plot_timeline
 
 
 class Px2Px_PL(pl.LightningModule):
@@ -263,6 +263,7 @@ class Px2Px_PL(pl.LightningModule):
                 if self.config.custom_configs.Logging.log_ndvi: # plot NDVI image
                     ndvi_img = plot_index(rgb, torch.clone(nir), torch.clone(nir_pred),title="Validation")
                     self.logger.experiment.log({"Images/Val NDVI":  wandb.Image(ndvi_img)}) # log val image
+                del ndvi_img, val_img
                 
                 # Log Input and Prediction Value Statistics
                 if self.config.custom_configs.Logging.log_input_stats:
@@ -279,17 +280,37 @@ class Px2Px_PL(pl.LightningModule):
                 if self.config.base_configs.lambda_rs_losses>0.0:
                     indices_dict = self.rs_losses.get_and_weight_losses(rgb,nir,nir_pred,mode="logging_dict")
                     self.log_dict(indices_dict,on_epoch=True,sync_dist=True)
+                    del indices_dict
                     
     def on_validation_epoch_end(self):
         # predict time series and get plot for WandB
-        pil_image = calculate_and_plot_timeline(model = self,
+        pil_image_bavaria = calculate_and_plot_timeline(model = self,
                                                 device=self.device,
+                                                root_dir="validation_utils/time_series_bavaria/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
+        pil_image_texas = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_texas/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
+        pil_image_michigan = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_michigan/*.tif",
                                                 size_input=self.config.Data.S2_100k.image_size,
                                                 mean_patch_size=4)
         if self.logger and hasattr(self.logger, 'experiment'):
-            self.logger.experiment.log({"Images/Val Timeline":  wandb.Image(pil_image)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Bavaria":  wandb.Image(pil_image_bavaria)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_texas)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
+
         else: # save to local if there is no logger being used
-            pil_image.save("validation_utils/timeline_plot_model.png")
+            pil_image_bavaria.save("validation_utils/timeline_bavaria.png")
+            pil_image_texas.save("validation_utils/timeline_texas.png")
+            pil_image_michigan.save("validation_utils/timeline_michigan.png")
+
+        # delete images to avoid memory issues
+        del pil_image_bavaria, pil_image_texas, pil_image_michigan
                 
     def extract_batch(self, batch):
         """
