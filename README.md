@@ -86,5 +86,5 @@ Features:
 [1] [SEN2NAIP](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP)  
 [2] [worldstrat](https://worldstrat.github.io/)  
 [3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
-[4] [SatCLIP](https://github.com/microsoft/satclip)
+[4] [SatCLIP](https://github.com/microsoft/satclip)  
 [5] [S100K](https://github.com/microsoft/satclip?tab=readme-ov-file#use-of-the-s2-100k-dataset)
