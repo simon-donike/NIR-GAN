@@ -25,7 +25,7 @@ if __name__ == '__main__':
     torch.set_float32_matmul_precision('medium')
 
     # load config
-    config = OmegaConf.load("configs/config_px2px.yaml") # SatCLIP
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
     #config = OmegaConf.load("configs/config_px2px.yaml") # Standard
 
     #############################################################################################################
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if config.custom_configs.Model.load_weights_only==True:
         ckpt = config.custom_configs.Model.weights_path
         ckpt = torch.load(ckpt)
-        model.load_state_dict(ckpt['state_dict'])
+        model.load_state_dict(ckpt['state_dict'],strict=False)
         print("Loaded (only) Weights from:",config.custom_configs.Model.weights_path)
 
     resume_from_checkpoint=None
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     #############################################################################################################
     
     trainer = Trainer(accelerator='cuda',
-                    devices=[2],
+                    devices=[3],
                     strategy="ddp",  #Doesnt work for SatCLIP workflow: Device issue of satclip model vs others
                     check_val_every_n_epoch=1,
                     #val_check_interval=0.25,

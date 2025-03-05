@@ -14,7 +14,7 @@ validation_utils/time_series_images/*
 validation_utils/*.png
 validation_utils/*.geojson
 validation_utils/*.csv
-*.tif
+*.tif 
 __pycache__/
 wandb/
 logs/
@@ -34,3 +34,14 @@ images/
 *.csv
 playground/
 playground/*
+
+validation_utils/time_series_iowa/
+validation_utils/time_series_texas_cropcircles/
+validation_utils/time_series_california/
+validation_utils/time_series_brazil/
+validation_utils/time_series_iowa/*
+validation_utils/time_series_texas_cropcircles/*
+validation_utils/time_series_california/*
+validation_utils/time_series_brazil/*
+validation_utils/datasets/
+validation_utils/datasets/*

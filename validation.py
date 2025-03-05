@@ -36,7 +36,6 @@ print("Loaded (only) Weights from:",config.custom_configs.Model.weights_path)
 
 
 # ITERATE OVER DATASET
-
 # set empty metrics dict
 metrics_dict = {"id":[],
                 "x":[],

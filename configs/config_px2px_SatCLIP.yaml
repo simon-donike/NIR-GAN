@@ -55,8 +55,8 @@ custom_configs:
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
-    load_weights_only: False # Load ckpt file only
-    weights_path: ""
+    load_weights_only: True # Load ckpt file only
+    weights_path: "logs/exp_NIR_GAN/2025-03-04_18-24-49_S2NAIP/last.ckpt"
 
 # Optim Scheduler Settings
 Schedulers:
@@ -84,7 +84,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2_75k' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed']
+  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:

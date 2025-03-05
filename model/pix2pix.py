@@ -299,10 +299,34 @@ class Px2Px_PL(pl.LightningModule):
                                                 root_dir="validation_utils/time_series_michigan/*.tif",
                                                 size_input=self.config.Data.S2_100k.image_size,
                                                 mean_patch_size=4)
+        pil_image_california = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_california/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
+        pil_image_texas_cropcircles = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_texas_cropcircles/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
+        pil_image_brazil = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_brazil/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
+        pil_image_iowa = calculate_and_plot_timeline(model = self,
+                                                device=self.device,
+                                                root_dir="validation_utils/time_series_iowa/*.tif",
+                                                size_input=self.config.Data.S2_100k.image_size,
+                                                mean_patch_size=4)
         if self.logger and hasattr(self.logger, 'experiment'):
             self.logger.experiment.log({"Images/Timeline Bavaria":  wandb.Image(pil_image_bavaria)}) # log plot
             self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_texas)}) # log plot
             self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Iowa":  wandb.Image(pil_image_iowa)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Tx_CropCircles":  wandb.Image(pil_image_texas_cropcircles)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Brazil":  wandb.Image(pil_image_brazil)}) # log plot
+            self.logger.experiment.log({"Images/Timeline California":  wandb.Image(pil_image_california)}) # log plot
 
         else: # save to local if there is no logger being used
             pil_image_bavaria.save("validation_utils/timeline_bavaria.png")
