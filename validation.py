@@ -115,7 +115,7 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
         df.to_csv("validation_utils/validation_metrics.csv")
         
     # break logic
-    if v==50:
+    if v==-1:
         break
 
 

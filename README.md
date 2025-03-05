@@ -1,5 +1,5 @@
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
-![Sample Result](resources/banner2.png)
+![Sample Result](resources/banner.png)
 
 ## SatCLIP Inclusion
 NEW: SatCLIP embeddings are now injected into the model, attention-style. The spatial prior is calculated, reshaped to a spatial vecgtor via a fully connected layer and then scaled by a learnable scale-parameter, before dot-wise multiplication. The embeddigns are injected after the downscaling layers, where general feautres have already been extracted, and before the ResNEt blocks, where said information is refined. The embeddings lead to better generalization, since they provide geographic, climate, vegetational and anthropogenic context to the model.
@@ -18,11 +18,15 @@ In this scenario, synthesizing the NIR band from RGB bands is crucial. By using 
 
 ## Project Objectives
 
-- **NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of multi-scale EI imagery.
+**NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of multi-scale EI imagery.  
+![nir_viz](resources/nir_viz.png)
   
-- **Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands, as well as derivative Indices like NDVI, NDWI, and EVI.
+**Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands, as well as derivative Indices like NDVI, NDWI, and EVI.  
+![ndvi_viz](resources/ndvi_viz.png)
 
-- **Time-Series of NDVI development**: Track NDVI over crop cycles and sasonality.
+
+**Time-Series of NDVI development**: Track NDVI over crop cycles and sasonality.  
+![timeseries_tx](resources/timeseries_tx.png)
 
 ## Training Data
 The model is trained using
