@@ -54,6 +54,10 @@ custom_configs:
     ckpt_path: "logs/exp_NIR_GAN/2025-03-04_18-24-49_S2NAIP/last.ckpt"
     load_weights_only: False # Load ckpt file only
     weights_path: "/data1/simon/GitHub/NIR_GAN/logs/exp_NIR_GAN/2025-03-04_18-24-07_S100k/epoch=197-step=556948.ckpt"
+  Training:
+    accelerator: "cuda"
+    devices: [2,3]
+    strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
 Schedulers:

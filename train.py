@@ -7,6 +7,10 @@ import os, datetime
 #from multiprocessing import freeze_support
 import matplotlib.pyplot as plt
 import time
+import argparse
+from utils.other_utils import str2bool
+
+
 
 # Only Run on one GPU
 #os.environ["CUDA_VISIBLE_DEVICES"] = "0"
@@ -18,15 +22,26 @@ import time
 # local imports
 from model.pix2pix import Px2Px_PL
 
+# Get Arguments
+parser = argparse.ArgumentParser(description='Train NIRR-GAN')
 # Run Main Function
 if __name__ == '__main__':
+    # get CL arguments
+    args = parser.parse_args()
+    parser.add_argument('--satclip', type=str2bool, required=True,
+                        help='Enable or disable satclip (true or false)')
+
 
     # General
     torch.set_float32_matmul_precision('medium')
 
-    # load config
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
-    #config = OmegaConf.load("configs/config_px2px.yaml") # Standard
+    # load config depending on setting
+    if args.satclip:
+        config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
+    elif not args.satclip:
+        config = OmegaConf.load("configs/config_px2px.yaml") # Standard
+    else:
+        raise ValueError("Invalid Argument for Satclip")
 
     #############################################################################################################
     " LOAD MODEL "
@@ -89,10 +104,10 @@ if __name__ == '__main__':
     #############################################################################################################
     """ Start Training """
     #############################################################################################################
-    
-    trainer = Trainer(accelerator='cuda',
-                    devices=[3],
-                    strategy="ddp",  #Doesnt work for SatCLIP workflow: Device issue of satclip model vs others
+    # extract training devices
+    trainer = Trainer(accelerator=config.custom_configs.Training.accelerator,
+                    devices=config.custom_configs.Training.devices,
+                    strategy=config.custom_configs.Training.strategy, 
                     check_val_every_n_epoch=1,
                     #val_check_interval=0.25,
                     limit_val_batches=25,
