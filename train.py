@@ -22,15 +22,15 @@ from utils.other_utils import str2bool
 # local imports
 from model.pix2pix import Px2Px_PL
 
-# Get Arguments
-parser = argparse.ArgumentParser(description='Train NIRR-GAN')
 # Run Main Function
 if __name__ == '__main__':
     # get CL arguments
+    parser = argparse.ArgumentParser(description='Training script for NIR-GAN.')
+    parser.add_argument('--satclip', required=False,default=True,
+                        help='Enable satclip (default: True)')
     args = parser.parse_args()
-    parser.add_argument('--satclip', type=str2bool, required=True,
-                        help='Enable or disable satclip (true or false)')
-
+    args.satclip = str2bool(args.satclip)
+    print("Satclip:",args.satclip)
 
     # General
     torch.set_float32_matmul_precision('medium')

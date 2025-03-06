@@ -13,13 +13,16 @@ from validation_utils.val_utils import crop_center
 from utils.remote_sensing_indices import RemoteSensingIndices
 
 
-
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = "cpu"
 
 # Get Data
-config = OmegaConf.load("configs/config_px2px.yaml")
+satclip=False
+if satclip:
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+else:
+    config = OmegaConf.load("configs/config_px2px.yaml")
 
 #ds = worldstrat_ds(config)
 ds = S2_100k(config,phase="val")
@@ -125,7 +128,7 @@ gdf = clean_economy(gdf)
 gdf = gdf.loc[:, ~gdf.columns.duplicated()] # remove double geo column
     
 # save final version with context info
-gdf.to_file("validation_utils/validation_metrics_ablation.geojson",driver='GeoJSON')
+gdf.to_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_"+str(satclip)+".geojson",driver='GeoJSON')
 
 
 

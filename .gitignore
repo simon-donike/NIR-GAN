@@ -1,6 +1,16 @@
 validation.py
 trashbin/
 trashbin/*
+validation_utils/metrics_folder/validation_metrics_ablation_satclip_False.geojson
+validation_utils/metrics_folder/validation_metrics_ablation_satclip_True.geojson
+validation_utils/metrics_folder
+validation_utils/metrics_folder/*
+validation_utils/metrics_folder/
+validation_utils/plots
+validation_utils/plots/
+validation_utils/plots/*
+validation_utils/datasets/
+validation_utils/datasets/*
 validation_utils/images/
 validation_utils/images/*
 validation_utils/world_metrics_old/

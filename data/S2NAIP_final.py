@@ -20,6 +20,7 @@ class SEN2NAIPv2(Dataset):
         self.image_size = self.config.Data.sen2naip_settings.image_size
         base_path = config.Data.sen2naip_settings.base_path
         dataset_type = config.Data.sen2naip_settings.dataset_type
+        self.collect_rate = 100 # collect garbage every 100th iteration
 
         assert dataset_type in ["real","synthetic1","synthetic2"],"Dataset type not found. Choose from ['real','synthetic-v1','synthetic-v2']"
         self.path = os.path.join(base_path,'SEN2NAIPv2-'+dataset_type,"main.json")
@@ -63,7 +64,7 @@ class SEN2NAIPv2(Dataset):
         # set up collecting logic. Seems to be error in h5py which
         # prevents proper release of data. If not done regularily,
         # memory footprint will increase until failure.
-        if idx%100==0:
+        if idx%self.collect_rate==0:
             collect=True
         else:
             collect=False
