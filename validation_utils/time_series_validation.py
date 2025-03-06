@@ -8,6 +8,7 @@ import io
 from PIL import Image
 from rasterio.warp import transform
 from matplotlib.gridspec import GridSpec
+import gc
 
 
 # surpress plotting warnings
@@ -83,7 +84,7 @@ def get_pred_nirs_and_info(model=None,device=None,root_dir="validation_utils/tim
                     output = model.predict_step(rgb.unsqueeze(0),coords.unsqueeze(0))
                     output = output.squeeze(0)
                     rgb = rgb.cpu()
-                    output = output.cpu()
+                    output = output.detach().cpu()
             else:
                 output = nir*1.15 # fake data for testing
             
@@ -99,6 +100,10 @@ def get_pred_nirs_and_info(model=None,device=None,root_dir="validation_utils/tim
     # reset model training if necessary
     if reset_model_mode:
         model = model.train()
+
+    gc.collect()
+    torch.cuda.empty_cache()
+    del model
     
     return(rgbs, nirs, nir_preds,timestamps)
 
@@ -200,8 +205,9 @@ def plot_timeline(rgbs, nirs, nir_preds, timestamps,mean_patch_size=32):
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=100)
     buf.seek(0)
-    pil_image = Image.open(buf)
+    pil_image = Image.open(buf).copy()
     plt.close()
+    buf.close()
     return pil_image
     
 
@@ -344,13 +350,16 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=100)
     buf.seek(0)
-    pil_image = Image.open(buf)
+    pil_image = Image.open(buf).copy()
     plt.close()
+    buf.close()
     return pil_image
 
 def calculate_and_plot_timeline(model=None,device=None,root_dir="validation_utils/time_series_bavaria/*.tif",size_input=256,mean_patch_size=4):
     r,n,p,t  = get_pred_nirs_and_info(model,device,root_dir,size_input=size_input)
     im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=mean_patch_size)
+    del r,n,p,t
+    gc.collect()
     return im
 
 

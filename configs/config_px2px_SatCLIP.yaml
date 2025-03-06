@@ -53,10 +53,10 @@ custom_configs:
     log_ndvi: False
     log_input_stats: True
   Model:
-    load_checkpoint: False # Continue PL-Style
-    ckpt_path: ""
-    load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN/2025-03-04_18-24-49_S2NAIP/last.ckpt"
+    load_checkpoint: True # Continue PL-Style
+    ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-05_22-38-54/last.ckpt"
+    load_weights_only: False # Load ckpt file only
+    weights_path: ""
 
 # Optim Scheduler Settings
 Schedulers:
@@ -75,9 +75,9 @@ Data:
   # Dataloader Settings
   train_batch_size: 24
   val_batch_size: 5
-  num_workers: 16
+  num_workers: 0
   prefetch_factor: 2
-  persistent_workers: True
+  persistent_workers: False
 
   # Padding for removal of edge artifacts
   padding: True

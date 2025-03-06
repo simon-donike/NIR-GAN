@@ -58,8 +58,9 @@ def plot_tensors(rgb, nir, pred_nir,title="Train"):
     buf = io.BytesIO()
     plt.savefig(buf, format='png',dpi=100)
     buf.seek(0)
-    pil_image = Image.open(buf)
+    pil_image = Image.open(buf).copy()
     plt.close()
+    buf.close()
     return(pil_image)
 
 
@@ -127,10 +128,11 @@ def plot_tensors_hist(rgb, nir, pred_nir, title="Train"):
 
     plt.tight_layout()
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=60)
+    plt.savefig(buf, format='png', dpi=100)
     buf.seek(0)
-    pil_image = Image.open(buf)
+    pil_image = Image.open(buf).copy()
     plt.close()
+    buf.close()
     return pil_image
 
 
@@ -185,6 +187,7 @@ def plot_index(rgb, nir, pred_nir, title="Train",index_name="NDVI"):
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=60)
     buf.seek(0)
-    pil_image = Image.open(buf)
+    pil_image = Image.open(buf).copy()
     plt.close()
+    buf.close()
     return pil_image

@@ -7,6 +7,7 @@ from io import BytesIO
 import numpy as np
 import h5py
 import pytorch_lightning as pl
+import gc
 #from albumentations import Compose, HorizontalFlip, RandomRotate90, ShiftScaleRotate
 #from albumentations.pytorch import ToTensorV2
 
@@ -57,22 +58,22 @@ class SEN2NAIPv2(Dataset):
 
     def __len__(self):
         return len(self.dataset.metadata)
-
-    def get_b4(self,t):
-        if t.shape[0]==3:
-            average = torch.mean(t, dim=0)
-            result = torch.cat((t, average.unsqueeze(0)), dim=0)
-            return(result)
-        else:
-            return(t)
-
+            
     def __getitem__(self, idx):
+        # set up collecting logic. Seems to be error in h5py which
+        # prevents proper release of data. If not done regularily,
+        # memory footprint will increase until failure.
+        if idx%100==0:
+            collect=True
+        else:
+            collect=False
+
         datapoint = self.dataset.metadata.iloc[idx]
-        lr,hr,metadata = self.get_data(datapoint)
+        lr,hr,metadata = self.get_data(datapoint,collect=collect)
         hr = hr.transpose(2,0,1)
         hr = hr[:,:self.image_size,:self.image_size]
         hr = torch.tensor(hr).float()
-        hr = self.get_b4(hr)
+        #hr = self.get_b4(hr)
         hr = hr/10000.
         
         rgb = hr[:3,:,:]
@@ -102,9 +103,60 @@ class SEN2NAIPv2(Dataset):
         if self.return_coords == True:
             coords = self.get_centroid_from_metadata(metadata)
             return_dict["coords"] = coords
+        
+        if collect:
+            gc.collect()
 
         return return_dict
         
+    def get_data(self,datapoint,collect=False):
+        data_bytes = mlstac.get_data(dataset=datapoint,
+            backend="bytes",
+            save_metadata_datapoint=True,
+            quiet=True)
+
+        with BytesIO(data_bytes[0][0]) as f:
+            with h5py.File(f, "r") as g:
+                metadata = eval(g.attrs["metadata"])
+                lr1 = np.moveaxis(g["input"][0:4], 0, -1)
+                hr1 = np.moveaxis(g["target"][0:4], 0, -1)
+        lr1 = lr1.astype(np.float32)
+        hr1 = hr1.astype(np.float32)
+        del data_bytes, f, g
+        if collect:
+            gc.collect()
+
+        return(lr1,hr1,metadata)
+    
+    def get_centroid_from_metadata(self,metadata):
+        from pyproj import Transformer
+        # Extract Information
+        width = metadata["hr_profile"]["width"]
+        height = metadata["hr_profile"]["height"]
+        crs = metadata["hr_profile"]["crs"]
+        trans = metadata["hr_profile"]["transform"]
+        # Get middle of image
+        centroid_x = width / 2
+        centroid_y = height / 2
+        
+        # Get geo coordinates
+        geo_x, geo_y = trans * (centroid_x, centroid_y)
+        transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
+        lon, lat = transformer.transform(geo_x, geo_y)
+        del transformer,geo_x,geo_y,centroid_x,centroid_y,trans,crs,width,height
+        return(torch.Tensor([lon,lat]))
+    
+    """
+    def get_b4(self,t):
+        if t.shape[0]==3:
+            average = torch.mean(t, dim=0)
+            result = torch.cat((t, average.unsqueeze(0)), dim=0)
+            return(result)
+        else:
+            return(t)
+    """
+
+    """
     def augment_images(self,rgb,nir):
         # 1. value stretch
         if np.random.randint(0,100) > 101:
@@ -130,39 +182,7 @@ class SEN2NAIPv2(Dataset):
         # final clean up
         rgb,nir = rgb.clip(0,1),nir.clip(0,1)        
         return rgb,nir
-        
-    def get_data(self,datapoint):
-        data_bytes = mlstac.get_data(dataset=datapoint,
-            backend="bytes",
-            save_metadata_datapoint=True,
-            quiet=True)
-
-        with BytesIO(data_bytes[0][0]) as f:
-            with h5py.File(f, "r") as g:
-                metadata = eval(g.attrs["metadata"])
-                lr1 = np.moveaxis(g["input"][0:4], 0, -1)
-                hr1 = np.moveaxis(g["target"][0:4], 0, -1)
-        lr1 = lr1.astype(np.float32)
-        hr1 = hr1.astype(np.float32)
-
-        return(lr1,hr1,metadata)
-    
-    def get_centroid_from_metadata(self,metadata):
-        from pyproj import Transformer
-        # Extract Information
-        width = metadata["hr_profile"]["width"]
-        height = metadata["hr_profile"]["height"]
-        crs = metadata["hr_profile"]["crs"]
-        trans = metadata["hr_profile"]["transform"]
-        # Get middle of image
-        centroid_x = width / 2
-        centroid_y = height / 2
-        
-        # Get geo coordinates
-        geo_x, geo_y = trans * (centroid_x, centroid_y)
-        transformer = Transformer.from_crs(crs, "EPSG:4326", always_xy=True)
-        lon, lat = transformer.transform(geo_x, geo_y)
-        return(torch.Tensor([lon,lat]))
+    """
         
 
 
@@ -179,21 +199,30 @@ class S2NAIP_dm(pl.LightningDataModule):
         return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
                           shuffle=True, num_workers=self.num_workers,
                           prefetch_factor=self.config.Data.prefetch_factor,drop_last=True,
-                          persistent_workers=self.config.Data.persistent_workers)
+                          persistent_workers=self.config.Data.persistent_workers,
+                          pin_memory=True)
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.num_workers,drop_last=True,)
+                          shuffle=True, num_workers=self.num_workers,drop_last=True,pin_memory=True,
+                          persistent_workers=True)
 
 
 
 if __name__ == "__main__":
     from omegaconf import OmegaConf
-    config = OmegaConf.load("configs/config_px2px.yaml")
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     pl_datamodule = S2NAIP_dm(config)
     b = pl_datamodule.dataset_train[1]
     rgb,nir = b["rgb"],b["nir"]
     
+
+    from tqdm import tqdm
+    for e in range(100):
+        for i in tqdm(pl_datamodule.train_dataloader()):
+            del i
+            pass
+
     
     """
     Ablation over DataLoader Settings
@@ -245,4 +274,4 @@ if __name__ == "__main__":
         return best_config
 
     # Run benchmark
-    best_setting = benchmark_dataloader(config)
+    #best_setting = benchmark_dataloader(config)
