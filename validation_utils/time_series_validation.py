@@ -37,6 +37,8 @@ def get_pred_nirs_and_info(model=None,device=None,root_dir="validation_utils/tim
         
         # extract date
         _ = file.split("/")[-1].split(".")[0]
+        if "SKIP" in _:
+            continue
         _ = _.split("_")[1]
         date  = _.split("T")[0]
         timestamps.append(date)
@@ -260,8 +262,8 @@ def plot_ndvi_timeline(rgbs, nirs, nir_preds, timestamps, mean_patch_size=32):
         for i in range(num_samples)]
     """
     # Compute centroid mean NDVI values
-    centroid_ndvi_true = [ndvi_true[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
-    centroid_ndvi_pred = [ndvi_pred[i, y1:y2, x1:x2].mean().item() for i in range(num_samples)]
+    centroid_ndvi_true = [ndvi_true[i, y1:y2, x1:x2].median().item() for i in range(num_samples)]
+    centroid_ndvi_pred = [ndvi_pred[i, y1:y2, x1:x2].median().item() for i in range(num_samples)]
     
     # Define figure and GridSpec layout
     num_images = min(6, num_samples)

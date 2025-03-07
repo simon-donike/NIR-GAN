@@ -185,7 +185,7 @@ def plot_index(rgb, nir, pred_nir, title="Train",index_name="NDVI"):
 
     # Save and return image
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=60)
+    plt.savefig(buf, format='png', dpi=50)
     buf.seek(0)
     pil_image = Image.open(buf).copy()
     plt.close()

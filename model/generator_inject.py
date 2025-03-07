@@ -12,7 +12,9 @@ class ResnetGenerator_inject(nn.Module):
     # Addition: Inject embeddings into the model after downsampling layers
     """
 
-    def __init__(self, input_nc, output_nc,inject_style="multiply", ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
+    def __init__(self, input_nc, output_nc,inject_style="multiply",post_correction=False,
+                 ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False,
+                 n_blocks=6, padding_type='reflect'):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -67,6 +69,11 @@ class ResnetGenerator_inject(nn.Module):
         
         # define learned scaling parameter for embeddings
         self.scale_param = nn.Parameter(torch.tensor(0.1))
+        
+        self.post_correction = post_correction
+        if self.post_correction:
+            print("Setting Post-Correction Parameter.")
+            self.post_correction_param = nn.Parameter(torch.tensor(1.))
 
         # build model
         self.model = nn.Sequential(*model)
@@ -95,11 +102,18 @@ class ResnetGenerator_inject(nn.Module):
         
         # Apply remaining layers
         x = self.model[6:](x)  
+        
+        # apply post-correction via learnable parameter
+        if self.post_correction:
+            x = x * self.post_correction_param
         return x
     
 
 from model.networks import get_norm_layer, init_net
-def define_G_inject(input_nc, output_nc,inject_style, ngf, netG, norm='batch', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[]):
+def define_G_inject(input_nc, output_nc,inject_style,
+                    post_correction=False,
+                    ngf=64, netG="resnet_9blocks", norm='batch', use_dropout=False,
+                    init_type='normal', init_gain=0.02, gpu_ids=[]):
     """Create a generator
 
     Parameters:
@@ -131,7 +145,10 @@ def define_G_inject(input_nc, output_nc,inject_style, ngf, netG, norm='batch', u
     norm_layer = get_norm_layer(norm_type=norm)
 
     if netG == 'resnet_9blocks':
-        net = ResnetGenerator_inject(input_nc, output_nc,inject_style, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
+        net = ResnetGenerator_inject(input_nc, output_nc,
+                                     inject_style, post_correction,ngf, 
+                                     norm_layer=norm_layer, use_dropout=use_dropout,
+                                     n_blocks=9)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized. Only resnet_9blocks for SatCLIP.' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -140,7 +157,7 @@ def define_G_inject(input_nc, output_nc,inject_style, ngf, netG, norm='batch', u
 if __name__=="__main__":
         
     # get Model    
-    m = ResnetGenerator_inject(3, 1,"add")
+    m = ResnetGenerator_inject(3, 1,"multiply",post_correction=True)
     
     # print FC layer size
     fc_params = sum(p.numel() for p in m.fc.parameters() if p.requires_grad)

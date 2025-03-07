@@ -36,6 +36,7 @@ class Px2Px_PL(pl.LightningModule):
             self.netG = define_G_inject(input_nc = self.opt.input_nc,
                                         output_nc = self.opt.output_nc,
                                         inject_style = self.config.satclip.satclip_inject_style,
+                                        post_correction = self.config.base_configs.post_correction,
                                         ngf = self.opt.ngf,
                                         netG = self.opt.netG,
                                         norm = self.opt.norm,
@@ -165,7 +166,8 @@ class Px2Px_PL(pl.LightningModule):
             # if model has scale parameter, log it
             if hasattr(self.netG, "scale_param"):
                 self.log("scale_param", self.netG.scale_param.item())
-                
+            if hasattr(self.netG, "post_correction_param"):
+                self.log("post_correction_param", self.netG.post_correction_param.item())
                 
         # Discriminator Step
         if optimizer_idx == 0:
@@ -314,7 +316,7 @@ class Px2Px_PL(pl.LightningModule):
                                                     root_dir="validation_utils/time_series_michigan/*.tif",
                                                     size_input=self.config.Data.S2_100k.image_size,
                                                     mean_patch_size=4)
-            self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_michigan)}) # log plot
+            self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
             del pil_image_michigan
 
             pil_image_california = calculate_and_plot_timeline(model = self,

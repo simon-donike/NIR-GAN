@@ -19,6 +19,7 @@ base_configs:
   gan_mode: "lsgan"
   lr: 0.0002
   beta1: 0.5 # Adam optimizer beta1
+  post_correction: True # learned post-correction parameter
 
   # Loss weights
   lambda_GAN: 1.0 # orig:1
@@ -43,23 +44,23 @@ satclip:
   satclip_style: "inject" # ['inject', 'concat']
   satclip_inject_style: "multiply" # ['add', 'multiply']
   satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
-  scaling_factor: 0.1 # scale embeddings to correlate with data range of input images - for add style
+  scaling_factor: 0.01 # scale embeddings to correlate with data range of input images - for add style
 
 # Logging and PL-Trainer Settings
 custom_configs:
   Logging:
     wandb_project: "exp_NIR_GAN_SatCLIP"
     num_val_images: 5
-    log_ndvi: False
+    log_ndvi: True
     log_input_stats: True
   Model:
-    load_checkpoint: True # Continue PL-Style
-    ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-05_22-38-54/last.ckpt"
-    load_weights_only: False # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-05_22-38-54/last.ckpt"
+    load_checkpoint: False # Continue PL-Style
+    ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
+    load_weights_only: True # Load ckpt file only
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [2,3]
+    devices: [3]
     strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
