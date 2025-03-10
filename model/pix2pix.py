@@ -10,7 +10,7 @@ from utils.logging_helpers import plot_index
 #from model.base_model import BaseModel
 from model import networks
 from utils.losses import ssim_loss
-from utils.losses import hist_loss
+from utils.losses import emd_loss as hist_loss
 from validation_utils.time_series_validation import calculate_and_plot_timeline
 import gc
 
@@ -222,7 +222,8 @@ class Px2Px_PL(pl.LightningModule):
             
             # Calculate, Weight and Log RS Losses
             if self.config.base_configs.lambda_rs_losses>0.0:
-                losses_rs_indices = self.rs_losses.get_and_weight_losses(rgb,nir,pred)
+                losses_rs_indices = self.rs_losses.get_and_weight_losses(rgb,nir,pred,
+                                                                         loss_config=dict(self.config.base_configs.internal_rs_loss_weights))
                 self.log("model_loss/indices_loss_weighted", losses_rs_indices)
                 losses_rs_indices_weighted = losses_rs_indices * self.config.base_configs.lambda_rs_losses
                 loss_G = loss_G + losses_rs_indices_weighted
@@ -442,7 +443,7 @@ if __name__ == "__main__":
     l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
     """
     # Test Model
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+    config = OmegaConf.load("configs/config_px2px.yaml")
     m = Px2Px_PL(config)
     
     # Test Predict Step
@@ -458,11 +459,12 @@ if __name__ == "__main__":
     batch = {"rgb":rgb, "nir":nir, "coords":coords}
     l0=m.training_step(batch, batch_idx=0, optimizer_idx=0)
     l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
-    print("Train works: ",l0,l1)
+    print("Train works: ",l0.item()," - ",l1.item())
     
     # test validation step
     m = m.eval()
     m.validation_step(batch,0)
+    m = m.train()
     
     
     

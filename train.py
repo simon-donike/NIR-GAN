@@ -10,15 +10,6 @@ import time
 import argparse
 from utils.other_utils import str2bool
 
-
-
-# Only Run on one GPU
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-# Set up multiprocessing safely
-#import torch.multiprocessing as mp
-#mp.set_start_method('spawn', force=True)
-
 # local imports
 from model.pix2pix import Px2Px_PL
 

@@ -42,34 +42,30 @@ class RemoteSensingIndices():
                 "lambda_msavi": 0.0,
                 "lambda_gndvi": 0.0}
             
-        # calculate losses
-        ndvi_loss = self.ndvi_calculation(rgb,nir,nir_pred)
-        ndwi_loss = self.ndwi_calculation(rgb,nir,nir_pred)
-        gndvi_loss = self.gndvi_calculation(rgb,nir,nir_pred)
-        savi_loss = self.savi_calculation(rgb,nir,nir_pred)
-        msavi_loss = self.msavi_calculation(rgb,nir,nir_pred)
-        evi_loss = self.evi_calculation(rgb,nir,nir_pred)
-        
-        if mode=="loss":
-            # perform weighting
-            ndvi_loss_weighted = loss_config["lambda_ndvi"] * ndvi_loss
-            ndwi_loss_weighted = loss_config["lambda_ndwi"] * ndwi_loss
-            gndvi_loss_weighted = loss_config["lambda_gndvi"] * gndvi_loss
-            savi_loss_weighted = loss_config["lambda_savi"] * savi_loss
-            msavi_loss_weighted = loss_config["lambda_msavi"] * msavi_loss
-            evi_loss_weighted = loss_config["lambda_evi"] * evi_loss
+        loss_fns = {
+                "lambda_ndvi": ("indices_loss/ndvi_error", self.ndvi_calculation),
+                "lambda_ndwi": ("indices_loss/ndwi_error", self.ndwi_calculation),
+                "lambda_gndvi": ("indices_loss/gndvi_error", self.gndvi_calculation),
+                "lambda_savi": ("indices_loss/savi_error", self.savi_calculation),
+                "lambda_msavi": ("indices_loss/msavi_error", self.msavi_calculation),
+                "lambda_evi": ("indices_loss/evi_error", self.evi_calculation),
+            }
+
             
-            # calculate toral loss and return
-            total_loss = ndvi_loss_weighted + ndwi_loss_weighted + gndvi_loss_weighted + savi_loss_weighted + msavi_loss_weighted + evi_loss_weighted
-            return(total_loss)
-        
-        elif mode=="logging_dict":
-            log_dict = {"indices_loss/ndvi_error": ndvi_loss,
-                        "indices_loss/ndwi_error": ndwi_loss,
-                        "indices_loss/gndvi_error": gndvi_loss,
-                        "indices_loss/savi_error": savi_loss,
-                        "indices_loss/msavi_error": msavi_loss,
-                        "indices_loss/evi_error": evi_loss}
+        if mode == "loss":
+            total_loss = 0.0
+            for loss_key, (_, loss_fn) in loss_fns.items():
+                weight = loss_config.get(loss_key, 0.0)
+                if weight > 0.0:
+                    loss_value = loss_fn(rgb, nir, nir_pred)
+                    total_loss += weight * loss_value
+            return total_loss
+
+        elif mode == "logging_dict":
+            log_dict = {}
+            for loss_key, (log_name, loss_fn) in loss_fns.items():
+                loss_value = loss_fn(rgb, nir, nir_pred)
+                log_dict[log_name] = loss_value
             return log_dict
         else:
             raise NotImplementedError(f"Mode '{mode}' not implemented. 'loss' or 'logging_dict' are supported.")
@@ -105,10 +101,13 @@ class RemoteSensingIndices():
         """
         rgb,nir,nir_pred= self.prepare_tensor_for_loss(rgb,nir,nir_pred)
         
+        # if loss, make sure division isnt by 0
+        epsilon = 1e-6 if self.mode=="loss" else 0
+        
         # Compute NDVI
         red = rgb[:,0:1,:,:]
-        ndvi = (nir - red) / (nir + red)
-        ndvi_pred = (nir_pred - red) / (nir_pred + red)
+        ndvi = (nir - red) / (nir + red + epsilon)
+        ndvi_pred = (nir_pred - red) / (nir_pred + red + epsilon)
 
         if self.mode=="loss":
             #ndvi,ndvi_pred = (ndvi+1)/2,(ndvi_pred+1)/2 # add 1 to bring range from 0..2
@@ -116,6 +115,9 @@ class RemoteSensingIndices():
             return loss
         elif self.mode=="index":
             return (ndvi,ndvi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
+
 
 
     def ndwi_calculation(self,rgb,nir,nir_pred):
@@ -139,10 +141,13 @@ class RemoteSensingIndices():
         """
         rgb,nir,nir_pred= self.prepare_tensor_for_loss(rgb,nir,nir_pred)
         
+        # if loss, make sure division isnt by 0
+        epsilon = 1e-6 if self.mode=="loss" else 0
+        
         # Compute NDWI
         green = rgb[:,1:2,:,:]
-        ndwi = (nir - green) / (nir + green)
-        ndwi_pred = (nir_pred - green) / (nir_pred + green)
+        ndwi = (nir - green) / (nir + green + epsilon)
+        ndwi_pred = (nir_pred - green) / (nir_pred + green + epsilon)
 
         if self.mode=="loss":
             #ndwi,ndwi_pred = (ndwi+1)/2,(ndwi_pred+1)/2 # add 1 to bring range from 0..2
@@ -150,6 +155,9 @@ class RemoteSensingIndices():
             return loss
         elif self.mode=="index":
             return (ndwi,ndwi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
+
 
     def gndvi_calculation(self,rgb, nir, nir_pred):
         """
@@ -187,6 +195,9 @@ class RemoteSensingIndices():
             return loss
         elif self.mode=="index":
             return (gndvi,gndvi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
+
 
     def savi_calculation(self,rgb, nir, nir_pred):
         """
@@ -221,6 +232,9 @@ class RemoteSensingIndices():
             return loss
         elif self.mode=="index":
             return (savi,savi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
+
         
     def msavi_calculation(self,rgb,nir,nir_pred):
         """
@@ -256,6 +270,9 @@ class RemoteSensingIndices():
             return(loss)
         elif self.mode=="index":
             return (msavi,msavi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
+
 
     def evi_calculation(self,rgb,nir,nir_pred):
         """
@@ -283,16 +300,23 @@ class RemoteSensingIndices():
         red = rgb[:,0:1,:,:]
         blue = rgb[:,2:3,:,:]
         
-        evi = g * ( (nir - red) / ( (nir + c1) * (red - c2) * (blue + l) ) )
-        evi_pred = g * ( (nir_pred - red) / ( (nir_pred + c1) * (red - c2) * (blue + l) ) )
-        
-        # loss
         if self.mode=="loss":
-            evi,evi_pred = (evi+1)/2,(evi_pred+1)/2 # add 1 to bring range from 0..2
+            # calculate loss with epsilon to avoid /0
+            denom = (nir + c1) * (red - c2) * (blue + l) + 1e-6
+            denom_pred = (nir_pred + c1) * (red - c2) * (blue + l) + 1e-6
+            evi = g * ((nir - red) / denom)
+            evi_pred = g * ((nir_pred - red) / denom_pred)
+            # caluclate and return loss
             loss = self.criterion(evi, evi_pred)
             return(loss)
         elif self.mode=="index":
+            # calculate without for accurate number/image
+            evi = g * ( (nir - red) / ( (nir + c1) * (red - c2) * (blue + l) ) )
+            evi_pred = g * ( (nir_pred - red) / ( (nir_pred + c1) * (red - c2) * (blue + l) ) )
+            # return evi and evi_pred image/values
             return (evi,evi_pred)
+        else:
+            raise NotImplementedError(f"Mode '{self.mode}' not implemented. 'loss' or 'index' are supported.")
 
 
 if __name__ == "__main__":
@@ -301,21 +325,6 @@ if __name__ == "__main__":
     rgb = torch.rand(1,3,512,512)
     
     rs_losses = RemoteSensingIndices() # get object
-    
-    l_ndvi = rs_losses.ndvi_calculation(rgb,nir,nir_pred)
-    print("NDVI Loss:", l_ndvi)
-    l_ndwi = rs_losses.ndwi_calculation(rgb,nir,nir_pred)
-    print("NDWI Loss:", l_ndwi)
-    l_gndvi = rs_losses.gndvi_calculation(rgb,nir,nir_pred)
-    print("GNDVI Loss:", l_gndvi)
-    l_savi = rs_losses.savi_calculation(rgb,nir,nir_pred)
-    print("SAVI Loss:", l_savi)
-    l_msavi = rs_losses.msavi_calculation(rgb,nir,nir_pred)
-    print("MSAVI Loss:", l_msavi)
-    l_evi = rs_losses.evi_calculation(rgb,nir,nir_pred)
-    print("EVI Loss:", l_evi)
-    
-
     # test weighted loss function
     total_loss = rs_losses.get_and_weight_losses(rgb,nir,nir_pred)
     print("Weighted Loss:", total_loss)

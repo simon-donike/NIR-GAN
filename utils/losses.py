@@ -3,6 +3,8 @@ import kornia
 import torch
 from scipy.stats import wasserstein_distance
 import numpy as np
+import torch.nn.functional as F
+
 
 
 def ssim_loss(img1, img2, window_size=11):
@@ -26,7 +28,7 @@ def ssim_loss(img1, img2, window_size=11):
     loss = 1 - loss  # SSIM returns similarity, so subtract from 1 to get loss
     return loss
 
-def hist_loss(image1, image2, bins=256):
+def hist_loss_old(image1, image2, bins=256):
     """
     Calculate the Wasserstein distance between two single-channel images.
 
@@ -59,6 +61,22 @@ def hist_loss(image1, image2, bins=256):
 
     return distance
 
+def emd_loss(pred, target):
+    # assert neither NaN or Inf
+    assert not torch.isnan(pred).any()
+    assert not torch.isnan(target).any()
+    assert not torch.isinf(pred).any()
+    assert not torch.isinf(target).any()
+    
+    pred = pred.reshape(pred.shape[0], -1)
+    target = target.reshape(target.shape[0], -1)
+
+    pred_cdf = torch.cumsum(F.softmax(pred, dim=1), dim=1)
+    target_cdf = torch.cumsum(F.softmax(target, dim=1), dim=1)
+
+    emd = torch.mean(torch.abs(pred_cdf - target_cdf))
+    return emd
+
 
 if __name__ == "__main__":
     a,b = torch.rand(1,1,512,512), torch.rand(1,1,512,512)+0.1
@@ -67,6 +85,9 @@ if __name__ == "__main__":
     
     emd = hist_loss(a,b)
     print("Hist Loss:", emd)
+    
+    emd_loss = emd_loss(a,b)
+    print("EMD Loss:", emd_loss)
     
 
 

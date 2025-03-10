@@ -50,7 +50,7 @@ def train_model(config=None):
         if yaml_config.custom_configs.Model.load_weights_only:
             ckpt = yaml_config.custom_configs.Model.weights_path
             ckpt = torch.load(ckpt)
-            model.load_state_dict(ckpt['state_dict'])
+            model.load_state_dict(ckpt['state_dict'], strict=False)
             print("Loaded (only) Weights from:", yaml_config.custom_configs.Model.weights_path)
 
         resume_from_checkpoint = None
@@ -96,7 +96,7 @@ def train_model(config=None):
 if __name__ == "__main__":    
     # define sweep config
     wandb_project_name = "NIRGAN_Sweep_noSatCLIP"
-    sweep_rsLoss_values = [0.00, 0.01, 0.1, 1.0]
+    sweep_rsLoss_values = [0.00, 0.01, 0.1,0.5, 1.0]
     sweep_histLoss_values = [0.00, 0.01, 0.1, 1.0]
     sweep_SatCLip_values = [False]
     

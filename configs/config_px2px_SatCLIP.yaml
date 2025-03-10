@@ -28,14 +28,14 @@ base_configs:
   lambda_hist: 0.0
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 0.0 # RS indices vs all others
+  lambda_rs_losses: 1.0 # RS indices vs all others
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
-    lambda_ndvi: 0.2
-    lambda_ndwi: 0.2
-    lambda_evi: 0.2
-    lambda_savi: 0.2
-    lambda_msavi: 0.2
+    lambda_ndvi: 0.33
+    lambda_ndwi: 0.33
+    lambda_evi: 0.33
+    lambda_savi: 0.0
+    lambda_msavi: 0.0
     lambda_gndvi: 0.0
 
 # SatCLIP Settings
