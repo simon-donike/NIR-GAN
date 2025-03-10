@@ -11,7 +11,8 @@ from pytorch_lightning.loggers import WandbLogger
 
 
 # Only Run on one GPU
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+#device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Set up multiprocessing safely
 #import torch.multiprocessing as mp
@@ -77,12 +78,12 @@ def train_model(config=None):
         #############################################################################################################
         trainer = Trainer(
             accelerator='cuda',
-            devices=[2,3],
+            devices=[3],
             strategy="ddp",
             check_val_every_n_epoch=1,
             limit_val_batches=25,
-            max_steps=75000,
-            resume_from_checkpoint=resume_from_checkpoint,
+            #max_steps=50000,
+            #resume_from_checkpoint=resume_from_checkpoint,
             logger=[wandb_logger],
             callbacks=[#checkpoint_callback,
                        lr_monitor
@@ -96,32 +97,30 @@ def train_model(config=None):
 if __name__ == "__main__":    
     # define sweep config
     wandb_project_name = "NIRGAN_Sweep_noSatCLIP"
-    sweep_rsLoss_values = [0.00, 0.01, 0.1,0.5, 1.0]
-    sweep_histLoss_values = [0.00, 0.01, 0.1, 1.0]
+    sweep_rsLoss_values = [0.00, 0.01, 0.1, 0.5, 1.0,1.5]
+    sweep_histLoss_values = [0.00, 0.01, 0.1, 0.5, 1.0,1.5]
     sweep_SatCLip_values = [False]
     
     run_count = len(sweep_rsLoss_values)*len(sweep_histLoss_values)*len(sweep_SatCLip_values)
-    print(f"Running {run_count} experiments.")
+    print(f"Running {run_count} experiment(s).")
 
     sweep_config = {
-        "method": "bayes",  # or "grid" or "bayesian"
+        "method": "grid",  # or "grid" or "bayes"
         "metric": {"name": "train/L1", "goal": "minimize"},
-        "max_trials": 50,  # Caps the total runs
+        #"max_trials": 50,  # Caps the total runs for bayesian
         "parameters": {
+            "epochs": {"value": 20},  # fixed epoch count
             "lambda_rs_losses": {
-                "values": sweep_rsLoss_values
-            },
+                "values": sweep_rsLoss_values},
             "SatCLIP": {
-                "values": sweep_SatCLip_values
-            },
+                "values": sweep_SatCLip_values},
             "lambda_histogram_loss": {  # Added histogram loss parameter
-                "values": sweep_histLoss_values
-        }
-        }
-    }
+                "values": sweep_histLoss_values}
+                        }
+                    }
     
     # Start Sweeps
     sweep_id = wandb.sweep(sweep_config, project=wandb_project_name)
-    wandb.agent(sweep_id, train_model, count=run_count)  # Runs 10 experiments
+    wandb.agent(sweep_id, train_model, count=run_count)  # Runs n experiments
     
     
