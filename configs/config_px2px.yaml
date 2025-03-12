@@ -53,7 +53,7 @@ custom_configs:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
     load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt
+    weights_path: "logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
   Training:
     accelerator: "cuda"
     devices: [2,3]

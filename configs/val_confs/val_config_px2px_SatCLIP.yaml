@@ -58,7 +58,7 @@ custom_configs:
     load_checkpoint: True # Continue PL-Style
     ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
     load_weights_only: False # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-56-26_SatCLIP_correct/epoch=133-step=562800.ckpt"
   Training:
     accelerator: "cpu"
     devices: [0]
