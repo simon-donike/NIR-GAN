@@ -18,6 +18,8 @@ from pytorch_lightning.loggers import WandbLogger
 #import torch.multiprocessing as mp
 #mp.set_start_method('spawn', force=True)
 
+torch.set_float32_matmul_precision('medium')
+
 # local imports
 from model.pix2pix import Px2Px_PL
 
@@ -82,6 +84,7 @@ def train_model(config=None):
             strategy="ddp",
             check_val_every_n_epoch=1,
             limit_val_batches=25,
+            max_epochs=15,
             #max_steps=50000,
             #resume_from_checkpoint=resume_from_checkpoint,
             logger=[wandb_logger],

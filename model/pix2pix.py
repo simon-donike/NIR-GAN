@@ -2,7 +2,7 @@ import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import pytorch_lightning as pl
 from omegaconf import OmegaConf
-import wandb
+import wandb,os
 from utils.calculate_metrics import calculate_metrics
 from utils.logging_helpers import plot_tensors_hist
 from utils.logging_helpers import plot_index
@@ -36,7 +36,7 @@ class Px2Px_PL(pl.LightningModule):
             self.netG = define_G_inject(input_nc = self.opt.input_nc,
                                         output_nc = self.opt.output_nc,
                                         inject_style = self.config.satclip.satclip_inject_style,
-                                        post_correction = self.config.base_configs.post_correction,
+                                        post_correction = self.config.satclip.post_correction,
                                         ngf = self.opt.ngf,
                                         netG = self.opt.netG,
                                         norm = self.opt.norm,
@@ -294,6 +294,15 @@ class Px2Px_PL(pl.LightningModule):
 
                     
     def on_validation_epoch_end(self):
+        # if first epoch, save config to experiment path
+        try:
+            if self.current_epoch==0:
+                out_path = os.path.join(self.dir_save_checkpoints,"config.yaml")
+                OmegaConf.save(self.config, out_path)
+        except:
+            pass
+            
+        # Time Series Logging
         if self.logger and hasattr(self.logger, 'experiment'):
             # predict time series and get plot for WandB
             pil_image_bavaria = calculate_and_plot_timeline(model = self,

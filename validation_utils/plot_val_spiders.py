@@ -6,9 +6,9 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import os
 
-
-def plot_radar_comparison(sc, no_sc, data_type):
+def plot_radar_comparison(sc, no_sc, data_type,folder="validation_utils/metrics_folder/"):
     df1 = sc
     df2 = no_sc
     # Aggregate data by the specified type
@@ -56,21 +56,23 @@ def plot_radar_comparison(sc, no_sc, data_type):
     plot_radar(ax2, stats_df1['ssim'].tolist(), stats_df2['ssim'].tolist(), 'SSIM')
 
     # Save the plot and close
-    out_file_name = f"validation_utils/plots/metrics_radar_satclip_{data_type}.png"
+    out_file_name = f"metrics_radar_satclip_{data_type}.png"
     out_file_name = out_file_name.replace(" ", "_")
+    out_file_name = os.path.join(folder, out_file_name)
     plt.tight_layout()
     plt.savefig(out_file_name)
     plt.close()
 
 
+if __name__ == "__main__":
+    
+    # read files
+    gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_False.geojson")
+    gdf_SatCLIP = gpd.read_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_True.geojson")
 
-# read files
-gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_False.geojson")
-gdf_SatCLIP = gpd.read_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_True.geojson")
-
-# start plotting
-plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Continent")
-plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Koppen_Class")
-plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"economy")
+    # start plotting
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Continent")
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Koppen_Class")
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"economy")
 
 

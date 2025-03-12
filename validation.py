@@ -13,7 +13,7 @@ from validation_utils.val_utils import crop_center
 from utils.remote_sensing_indices import RemoteSensingIndices
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 device = "cpu"
 

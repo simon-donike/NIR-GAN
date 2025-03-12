@@ -19,7 +19,6 @@ base_configs:
   gan_mode: "lsgan"
   lr: 0.0002
   beta1: 0.5 # Adam optimizer beta1
-  post_correction: True # learned post-correction parameter
 
   # Loss weights
   lambda_GAN: 1.0 # orig:1
@@ -28,7 +27,7 @@ base_configs:
   lambda_hist: 0.0
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 1.0 # RS indices vs all others
+  lambda_rs_losses: 0.0 # RS indices vs all others
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
     lambda_ndvi: 0.33
@@ -44,7 +43,12 @@ satclip:
   satclip_style: "inject" # ['inject', 'concat']
   satclip_inject_style: "multiply" # ['add', 'multiply']
   satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
-  scaling_factor: 0.01 # scale embeddings to correlate with data range of input images - for add style
+  post_correction: False # learned post-correction parameter
+
+  # only used in addition style, 1.0 is no change
+  scaling_factor: 1.0 # 0.01 # scale embeddings to correlate with data range of input images
+
+
 
 # Logging and PL-Trainer Settings
 custom_configs:
@@ -55,12 +59,12 @@ custom_configs:
     log_input_stats: True
   Model:
     load_checkpoint: False # Continue PL-Style
-    ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
-    load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
+    ckpt_path: ""
+    load_weights_only: False # Load ckpt file only
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-56-26_SatCLIP_correct/epoch=133-step=562800.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [3]
+    devices: [2]
     strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
@@ -89,7 +93,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed']
+  dataset_type: 'S2_100k' # ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'mixed']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:

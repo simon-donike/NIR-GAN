@@ -5,12 +5,12 @@ base_configs:
   full_key: null
   name: "px"
   preprocess: null
-  input_nc: 3
+  input_nc: 3 # RGB inputs. satclip embeds get added later, put here only input shape
   output_nc: 1
   ngf: 64
   ndf: 64
   netD: "basic"
-  netG: "resnet_9blocks"
+  netG: "resnet_9blocks" # dont use a different version for now
   norm: "instance"
   no_dropout: true
   init_type: "normal"
@@ -24,46 +24,51 @@ base_configs:
   lambda_GAN: 1.0 # orig:1
   lambda_L1: 100.0 # orig: 100
   lambda_ssim: 0.0 # untested
-  lambda_hist: 0.0 # tested
-  use_training_pred_optimization: False
+  lambda_hist: 0.0
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 0.5 # RS indices vs all others - untested
+  lambda_rs_losses: 1.0 # RS indices vs all others
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
-    lambda_ndvi: 0.3333
-    lambda_ndwi: 0.3333
-    lambda_evi: 0.3333
+    lambda_ndvi: 0.33
+    lambda_ndwi: 0.33
+    lambda_evi: 0.33
     lambda_savi: 0.0
     lambda_msavi: 0.0
     lambda_gndvi: 0.0
 
 # SatCLIP Settings
 satclip:
-  use_satclip: False
+  use_satclip: True # wether to use SatCLIP or not
+  satclip_style: "inject" # ['inject', 'concat']
+  satclip_inject_style: "multiply" # ['add', 'multiply']
+  satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
+  scaling_factor: 0.01 # scale embeddings to correlate with data range of input images - for add style
+  post_correction: True # learned post-correction parameter
+
 
 # Logging and PL-Trainer Settings
 custom_configs:
   Logging:
-    wandb_project: "exp_NIR_GAN" #"exp_NIR_GAN"
-    num_val_images: 1
+    wandb_project: "exp_NIR_GAN_SatCLIP"
+    num_val_images: 5
     log_ndvi: True
     log_input_stats: True
   Model:
-    load_checkpoint: False # Continue PL-Style
-    ckpt_path: ""
-    load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt
+    load_checkpoint: True # Continue PL-Style
+    ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
+    load_weights_only: False # Load ckpt file only
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
   Training:
-    accelerator: "cuda"
-    devices: [2,3]
+    accelerator: "cpu"
+    devices: [0]
     strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
 Schedulers:
   metric: 'val/L1'
-  patience_g: 10
-  patience_d: 10
+  patience_g: 5
+  patience_d: 5
   factor_g: 0.5
   factor_d: 0.5
   verbose: True
@@ -74,20 +79,20 @@ Data:
   normalize: False # TODO: removed this option
   
   # Dataloader Settings
-  train_batch_size: 48
+  train_batch_size: 24
   val_batch_size: 5
   num_workers: 16
   prefetch_factor: 2
   persistent_workers: True
 
   # Padding for removal of edge artifacts
-  padding: False
-  padding_amount: 5
+  padding: True
+  padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'mixed','S2_100k']
+  dataset_type: 'S2_100k' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
-  # Individual Dataset settings
+  spectral_matching: "none" #'histogram'
   sen2naip_settings:
     image_size: 256
     base_path: "/data2/simon/"

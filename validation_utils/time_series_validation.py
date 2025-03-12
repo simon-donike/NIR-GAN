@@ -366,6 +366,27 @@ def calculate_and_plot_timeline(model=None,device=None,root_dir="validation_util
 
 
 if __name__ == "__main__":
-    r,n,p,t  = get_pred_nirs_and_info(None)
-    im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=4)
-    im.save("validation_utils/timeline_ndvi_plot.png")
+    pass
+    #r,n,p,t  = get_pred_nirs_and_info(None)
+    #im = plot_ndvi_timeline(r,n,p,t,mean_patch_size=4)
+    #im.save("validation_utils/timeline_ndvi_plot.png")
+    
+if __name__ == "__main__":
+    # Get Model
+    import torch
+    from omegaconf import OmegaConf
+    from model.pix2pix import Px2Px_PL
+    yaml_config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+    model = Px2Px_PL(yaml_config)
+    ckpt_path = "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
+    ckpt = torch.load(ckpt_path)
+    model.load_state_dict(ckpt['state_dict'], strict=False)
+    model = model.eval()
+    
+    # Prepare Data
+    tx_crop_path = "validation_utils/time_series_texas_cropcircles/*.tif"
+    pil_im = calculate_and_plot_timeline(model,device=None,root_dir=tx_crop_path,size_input=256)
+    # save image
+    pil_im.save("validation_utils/timeline_plot_cherry.png")
+    
+    

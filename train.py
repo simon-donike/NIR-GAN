@@ -76,6 +76,7 @@ if __name__ == '__main__':
     dir_save_checkpoints = os.path.join(tb_logger.save_dir,wandb_project,
                                                 datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
     print("Experiment Path:",dir_save_checkpoints)
+    model.dir_save_checkpoints = dir_save_checkpoints # save to model
 
     checkpoint_callback = ModelCheckpoint(dirpath=dir_save_checkpoints,
                                             monitor=config.Schedulers.metric,
