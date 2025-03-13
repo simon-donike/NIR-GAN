@@ -49,6 +49,9 @@ custom_configs:
     num_val_images: 1
     log_ndvi: True
     log_input_stats: True
+    check_val_every_n_epoch: 1
+    time_series_frequency_epochs: 25
+
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
@@ -85,7 +88,7 @@ Data:
   padding_amount: 5
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'mixed','S2_100k']
+  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'mixed','S2_100k','worldstrat']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   # Individual Dataset settings
   sen2naip_settings:
@@ -107,5 +110,6 @@ Data:
     base_path: "/data2/simon/s100k/images/"
     return_coords: True
   worldstrat_settings:
+    image_type: "lr" # ["lr","hr"]
     image_size: 256
     return_coords: True

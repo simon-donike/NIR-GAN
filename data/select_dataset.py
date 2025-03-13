@@ -10,8 +10,8 @@ def dataset_selector(config):
         from data.S2_dataset import S2_datamodule
         return S2_datamodule(config)
     elif dataset_type == "worldstrat":
-        from data.worldstrat import worldstrat_ds
-        return worldstrat_ds(config)
+        from data.worldstrat import worldstrat_datamodule
+        return worldstrat_datamodule(config)
     elif dataset_type == "S2_75k":
         from data.s2_75k_dataset import S2_75k_datamodule
         return S2_75k_datamodule(config)

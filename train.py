@@ -100,7 +100,7 @@ if __name__ == '__main__':
     trainer = Trainer(accelerator=config.custom_configs.Training.accelerator,
                     devices=config.custom_configs.Training.devices,
                     strategy=config.custom_configs.Training.strategy, 
-                    check_val_every_n_epoch=1,
+                    check_val_every_n_epoch=config.custom_configs.Logging.check_val_every_n_epoch,
                     #val_check_interval=0.25,
                     limit_val_batches=25,
                     max_epochs=99999,

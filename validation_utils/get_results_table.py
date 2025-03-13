@@ -99,7 +99,8 @@ def create_val_metrics(config_path,folder):
             image_folder = os.path.join(folder,"images")
             os.makedirs(image_folder,exist_ok=True)
             type_name = "SatCLIP" if satclip else "NoSatCLIP"
-            im_path = os.path.join(image_folder,f"example_image_{id_}_{type_name}.png")
+            id_clean = str(id_).zfill(4)
+            im_path = os.path.join(image_folder,f"example_image_{id_clean}_{type_name}.png")
             # get and save image
             img = plot_tensors(rgb, nir, pred,title="Worldstrat Validation")
             img.save(im_path, 'PNG')

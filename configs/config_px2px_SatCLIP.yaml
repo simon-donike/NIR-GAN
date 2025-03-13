@@ -57,11 +57,13 @@ custom_configs:
     num_val_images: 5
     log_ndvi: True
     log_input_stats: True
+    check_val_every_n_epoch: 10
+    time_series_frequency_epochs: 1
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
     load_weights_only: False # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-56-26_SatCLIP_correct/epoch=133-step=562800.ckpt"
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
   Training:
     accelerator: "cuda"
     devices: [2]
@@ -93,7 +95,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2_100k' # ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'mixed']
+  dataset_type: 'worldstrat' # ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat','mixed']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   spectral_matching: "none" #'histogram'
   sen2naip_settings:
@@ -115,5 +117,6 @@ Data:
     base_path: "/data2/simon/s100k/images/"
     return_coords: True
   worldstrat_settings:
+    image_type: "lr" # ["lr","hr"]
     image_size: 256
     return_coords: True

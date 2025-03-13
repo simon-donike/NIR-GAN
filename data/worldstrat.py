@@ -12,15 +12,24 @@ import geopandas as gpd
 
 # Step 1: Define a custom dataset
 class worldstrat_ds(Dataset):
-    def __init__(self, config,image_source="hr",metadata_csv="/data1/simon/GitHub/worldstrat/pretrained_model/metadata_ablation.geojson"):
+    def __init__(self, config,phase="train",metadata_csv="/data1/simon/GitHub/worldstrat/pretrained_model/metadata_ablation.geojson"):
         self.data = gpd.read_file(metadata_csv)
-        self.image_source = image_source
+        self.image_source = config.Data.worldstrat_settings.image_type
         self.hr_base_path = "/data2/simon/worldstrat/hr_dataset/"
         self.lr_base_path = "/data2/simon/worldstrat/lr_dataset/"
 
         self.config = config
         self.image_size = self.config.Data.worldstrat_settings.image_size
         self.return_coords = self.config.Data.worldstrat_settings.return_coords
+        
+        if phase == "train":
+            # select 80 percent of the data for training
+            self.data = self.data.sample(frac=0.8,random_state=42)
+        elif phase == "val":
+            # select 20 percent of the data for validation
+            self.data = self.data.sample(frac=0.2,random_state=42)
+        else:
+            raise ValueError("phase must be either 'train' or 'val'")
         
     def get_hr(self,idx):
         row = self.data.iloc[idx]
@@ -78,10 +87,36 @@ class worldstrat_ds(Dataset):
         # Perform the crop
         cropped_im = im[:, start_h:start_h + target_height, start_w:start_w + target_width]
         return cropped_im
+    
+    def create_patch(self,im):
+        if im.shape[-1] > self.image_size:
+            im = self.crop_center(im,self.image_size)
+        elif im.shape[-1] < self.image_size:
+            im = self.pad_image(im)
+            # pad image to desired size with reflective padding in all 4 directions
+        elif im.shape[-1] == self.image_size:
+            pass
+        return im
+
+    def pad_image(self,im):
+        c, h, w = im.shape  # assuming im shape is (channels, height, width)
+        # Compute total padding needed for height and width
+        pad_h_total = self.image_size - h
+        pad_w_total = self.image_size - w
+        # Randomly split the total padding into two parts for each dimension
+        pad_h_top = np.random.randint(0, pad_h_total + 1)
+        pad_h_bottom = pad_h_total - pad_h_top
+        pad_w_left = np.random.randint(0, pad_w_total + 1)
+        pad_w_right = pad_w_total - pad_w_left
+        # Apply reflective padding along the height and width axes
+        im = np.pad(im, ((0, 0), (pad_h_top, pad_h_bottom), (pad_w_left, pad_w_right)), mode='reflect')
+        return im
 
     def __len__(self):
         return len(self.data)
+    
 
+    
     def __getitem__(self, index):
         # get ID
         id_ = self.data.iloc[index]["id"]
@@ -91,14 +126,12 @@ class worldstrat_ds(Dataset):
             im = im / 10000
         elif self.image_source == "hr":
             im = self.get_hr(index)
-            im = im / 10000
+            im = im # /10000
             im = self.change_resolution(im, factor=0.6) # go from 1.5 to 2.5m resolution for HR image
-
-        #print(self.image_source,":",im.shape,im.mean())
 
         # crop to square, crop center to desired size of 128/512
         im = self.crop_square(im)
-        im = self.crop_center(im,512)
+        im = self.create_patch(im)
         
         # extract bands
         rgb = im[:3,:,:]
@@ -113,10 +146,29 @@ class worldstrat_ds(Dataset):
             return_dict["coords"] = coords
 
         return return_dict
+    
+    
+class worldstrat_datamodule(pl.LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        # Initialize the dataset
+        self.dataset_train = worldstrat_ds(self.config,phase="train")
+        self.dataset_val = worldstrat_ds(self.config,phase="val")
+        
+
+    def train_dataloader(self):        
+        return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,
+                          shuffle=True, num_workers=self.config.Data.num_workers)
+
+    def val_dataloader(self):
+        return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
+                          shuffle=True, num_workers=self.config.Data.num_workers,drop_last=True)
  
 
 if __name__=="__main__":
     from omegaconf import OmegaConf
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     ds = worldstrat_ds(config)
+    ds_dm = worldstrat_datamodule(config)
     _ = ds.__getitem__(10)
