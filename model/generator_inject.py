@@ -11,11 +11,12 @@ class ResnetGenerator_inject(nn.Module):
     
     # Addition: Inject embeddings into the model after downsampling layers
     """
-
+    """
     def __init__(self, input_nc, output_nc,inject_style="multiply",post_correction=False,
                  ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False,
                  n_blocks=6, padding_type='reflect'):
-        """Construct a Resnet-based generator
+    """
+    """Construct a Resnet-based generator
 
         Parameters:
             input_nc (int)      -- the number of channels in input images
@@ -25,7 +26,20 @@ class ResnetGenerator_inject(nn.Module):
             use_dropout (bool)  -- if use dropout layers
             n_blocks (int)      -- the number of ResNet blocks
             padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
-        """
+    """
+    def __init__(self,config,norm_layer,n_blocks=9):
+        
+        padding_type='reflect'
+        
+        # extract info from config
+        input_nc = config.base_configs.input_nc
+        output_nc = config.base_configs.output_nc
+        ngf = config.base_configs.ngf
+        use_dropout = not config.base_configs.no_dropout
+        inject_style = config.satclip.satclip_inject_style
+        post_correction = config.satclip.post_correction
+        
+        
         self.inject_style=inject_style
         assert(n_blocks >= 0)
         super(ResnetGenerator_inject, self).__init__()
@@ -110,10 +124,13 @@ class ResnetGenerator_inject(nn.Module):
     
 
 from model.networks import get_norm_layer, init_net
+"""
 def define_G_inject(input_nc, output_nc,inject_style,
                     post_correction=False,
                     ngf=64, netG="resnet_9blocks", norm='batch', use_dropout=False,
                     init_type='normal', init_gain=0.02, gpu_ids=[]):
+"""
+def define_G_inject(config):
     """Create a generator
 
     Parameters:
@@ -141,15 +158,32 @@ def define_G_inject(input_nc, output_nc,inject_style,
 
     The generator has been initialized by <init_net>. It uses RELU for non-linearity.
     """
-    net = None
+    # extract info from config
+    input_nc = config.base_configs.input_nc
+    output_nc = config.base_configs.output_nc
+    ngf = config.base_configs.ngf
+    netG = config.base_configs.netG
+    norm = config.base_configs.norm
+    use_dropout = not config.base_configs.no_dropout
+    init_type = config.base_configs.init_type
+    init_gain = config.base_configs.init_gain
+    gpu_ids=[]
+    inject_style = config.satclip.satclip_inject_style
+    post_correction = config.satclip.post_correction
+    
     norm_layer = get_norm_layer(norm_type=norm)
 
     if netG == 'resnet_9blocks':
+        n_blocks = 9 # hardcoded bc thats the string definition
+        """
         net = ResnetGenerator_inject(input_nc, output_nc,
                                      inject_style, post_correction,ngf, 
                                      norm_layer=norm_layer, use_dropout=use_dropout,
                                      n_blocks=9)
+        """
+        net = ResnetGenerator_inject(config,norm_layer=norm_layer,n_blocks=n_blocks)
     else:
+        net = None
         raise NotImplementedError('Generator model name [%s] is not recognized. Only resnet_9blocks for SatCLIP.' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
 

@@ -33,6 +33,7 @@ class Px2Px_PL(pl.LightningModule):
         elif self.config.satclip.use_satclip == True and self.config.satclip.satclip_style=="inject":
             print(f"Creating SatCLIP Injection Generator with injection style: '{self.config.satclip.satclip_inject_style}'.")
             from model.generator_inject import define_G_inject
+            """
             self.netG = define_G_inject(input_nc = self.opt.input_nc,
                                         output_nc = self.opt.output_nc,
                                         inject_style = self.config.satclip.satclip_inject_style,
@@ -43,6 +44,8 @@ class Px2Px_PL(pl.LightningModule):
                                         use_dropout= not self.opt.no_dropout,
                                         init_type = self.opt.init_type,
                                         init_gain = self.opt.init_gain)
+            """
+            self.netG = define_G_inject(self.config)
             
         # (c) No SatCLIP - standard model
         else:
@@ -454,9 +457,10 @@ if __name__ == "__main__":
     l1= m.training_step(batch, batch_idx=0, optimizer_idx=1)
     """
     # Test Model
-    config = OmegaConf.load("configs/config_px2px.yaml")
+    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     m = Px2Px_PL(config)
     
+
     # Test Predict Step
     m = m.eval()
     pred = m.predict_step(torch.rand(5,3,512,512),torch.rand(5,256))

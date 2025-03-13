@@ -47,7 +47,7 @@ satclip:
 
   # only used in addition style, 1.0 is no change
   scaling_factor: 1.0 # 0.01 # scale embeddings to correlate with data range of input images
-
+  scaling_param_init: 0.01 # imnitial value in case of learned scaling parameter
 
 
 # Logging and PL-Trainer Settings
@@ -57,8 +57,8 @@ custom_configs:
     num_val_images: 5
     log_ndvi: True
     log_input_stats: True
-    check_val_every_n_epoch: 10
-    time_series_frequency_epochs: 1
+    check_val_every_n_epoch: 1
+    time_series_frequency_epochs: 15
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
@@ -84,7 +84,7 @@ Data:
   normalize: False # TODO: removed this option
   
   # Dataloader Settings
-  train_batch_size: 24
+  train_batch_size: 8 # 24 in normal scenario
   val_batch_size: 5
   num_workers: 16
   prefetch_factor: 2

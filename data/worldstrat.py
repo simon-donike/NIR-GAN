@@ -115,6 +115,28 @@ class worldstrat_ds(Dataset):
     def __len__(self):
         return len(self.data)
     
+    def augment(self, im):
+        # Check if the input is a torch.Tensor, convert to numpy if so
+        im_is_torch = False
+        if isinstance(im, torch.Tensor):
+            im = im.numpy()
+            im_is_torch = True
+
+        # Randomly flip the image horizontally
+        if random.random() > 0.5:
+            im = np.flip(im, axis=-1)
+        # Randomly flip the image vertically
+        if random.random() > 0.5:
+            im = np.flip(im, axis=-2)
+
+        # Create a contiguous array to remove negative strides
+        im = np.ascontiguousarray(im)
+
+        # Convert back to torch.Tensor if necessary
+        if im_is_torch:
+            im = torch.tensor(im)
+        return im
+    
 
     
     def __getitem__(self, index):
@@ -131,19 +153,19 @@ class worldstrat_ds(Dataset):
 
         # crop to square, crop center to desired size of 128/512
         im = self.crop_square(im)
+        im = self.augment(im)
         im = self.create_patch(im)
         
         # extract bands
         rgb = im[:3,:,:]
         nir = im[3:,:,:]
 
-        return_dict = {"rgb":rgb,"nir":nir}
+        return_dict = {"rgb":torch.Tensor(rgb),"nir":torch.Tensor(nir)}
 
         if self.return_coords:
             row = self.data.iloc[index]
             coords = [row["geometry"].x,row["geometry"].y]
-            coords = torch.Tensor(coords)
-            return_dict["coords"] = coords
+            return_dict["coords"] = torch.Tensor(coords)
 
         return return_dict
     
