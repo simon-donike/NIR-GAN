@@ -37,7 +37,15 @@ class ResnetGenerator_inject(nn.Module):
         ngf = config.base_configs.ngf
         use_dropout = not config.base_configs.no_dropout
         inject_style = config.satclip.satclip_inject_style
-        post_correction = config.satclip.post_correction
+        
+        # post correction settings
+        self.post_correction = config.satclip.post_correction
+        self.post_correction_init = config.satclip.post_correction_init
+        
+        # scaling parameter settings
+        self.scaling_param = config.satclip.scaling_param
+        self.scaling_param_init = config.satclip.scaling_param_init
+        
         
         
         self.inject_style=inject_style
@@ -81,13 +89,15 @@ class ResnetGenerator_inject(nn.Module):
         self.embed_fc_ou_square = 128
         self.fc = nn.Linear(in_features=256, out_features=self.embed_fc_ou_square*self.embed_fc_ou_square)  # Example size, adjust accordingly
         
-        # define learned scaling parameter for embeddings
-        self.scale_param = nn.Parameter(torch.tensor(0.1))
+        if self.scaling_param:
+            # define learned scaling parameter for embeddings
+            print("Setting learned scale Parameter with init value: ",self.scaling_param_init)
+            self.scale_param = nn.Parameter(torch.tensor(self.scaling_param_init))
         
-        self.post_correction = post_correction
         if self.post_correction:
-            print("Setting Post-Correction Parameter.")
-            self.post_correction_param = nn.Parameter(torch.tensor(1.))
+            # apply learned post-correction parameter
+            print("Setting Post-Correction Parameter with init value: ",self.post_correction_init)
+            self.post_correction_param = nn.Parameter(torch.tensor(self.post_correction_init))
 
         # build model
         self.model = nn.Sequential(*model)
@@ -109,10 +119,12 @@ class ResnetGenerator_inject(nn.Module):
         embeds = embeds.repeat(1, x.shape[-3], 1, 1)        
                 
         # Combine feature map with context
-        if self.inject_style == "add":
+        if self.inject_style == "add": # if just add
             x = x + (self.scale_param * embeds)
-        elif self.inject_style == "multiply":
+        elif self.inject_style == "multiply" and self.scale_param:
             x = x * (1 + self.scale_param * embeds)
+        elif self.inject_style == "multiply" and not self.scale_param:
+            x = x * embeds
         
         # Apply remaining layers
         x = self.model[6:](x)  

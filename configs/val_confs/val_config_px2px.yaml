@@ -107,5 +107,6 @@ Data:
     base_path: "/data2/simon/s100k/images/"
     return_coords: True
   worldstrat_settings:
+    image_type: "lr" # ["lr","hr"]
     image_size: 256
     return_coords: True

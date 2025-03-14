@@ -43,8 +43,21 @@ satclip:
   satclip_style: "inject" # ['inject', 'concat']
   satclip_inject_style: "multiply" # ['add', 'multiply']
   satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
-  scaling_factor: 0.01 # scale embeddings to correlate with data range of input images - for add style
-  post_correction: True # learned post-correction parameter
+
+  # post correction settings
+  post_correction: False # learned post-correction parameter
+  post_correction_init: 1.0 # initial value of post-correction parameter
+  
+  # Learned SatCLIP scaling parameter
+  scaling_param: True # use learned scaling parameter?
+  scaling_param_init: 0.01 # initial value of scale param
+
+  # older settings, potentially remove
+  # only used in addition style, 1.0 is no change
+  #scaling_factor: 1.0 # 0.01 # scale embeddings to correlate with data range of input images
+  
+
+
 
 
 # Logging and PL-Trainer Settings
@@ -55,10 +68,10 @@ custom_configs:
     log_ndvi: True
     log_input_stats: True
   Model:
-    load_checkpoint: True # Continue PL-Style
+    load_checkpoint: False # Continue PL-Style
     ckpt_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_10-58-48/last.ckpt"
-    load_weights_only: False # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-56-26_SatCLIP_correct/epoch=133-step=562800.ckpt"
+    load_weights_only: True # Load ckpt file only
+    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-13_14-22-58/last.ckpt"
   Training:
     accelerator: "cpu"
     devices: [0]
@@ -112,5 +125,6 @@ Data:
     base_path: "/data2/simon/s100k/images/"
     return_coords: True
   worldstrat_settings:
+    image_type: "lr" # ["lr","hr"]
     image_size: 256
     return_coords: True

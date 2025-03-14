@@ -43,12 +43,19 @@ satclip:
   satclip_style: "inject" # ['inject', 'concat']
   satclip_inject_style: "multiply" # ['add', 'multiply']
   satclip_path: "model/satclip/satclip-resnet50-l10.ckpt"
+  
+  # post correction settings
   post_correction: False # learned post-correction parameter
+  post_correction_init: 1.0 # initial value of post-correction parameter
+  
+  # Learned SatCLIP scaling parameter
+  scaling_param: True # use learned scaling parameter?
+  scaling_param_init: 0.01 # initial value of scale param
 
+  # older settings, potentially remove
   # only used in addition style, 1.0 is no change
-  scaling_factor: 1.0 # 0.01 # scale embeddings to correlate with data range of input images
-  scaling_param_init: 0.01 # imnitial value in case of learned scaling parameter
-
+  #scaling_factor: 1.0 # 0.01 # scale embeddings to correlate with data range of input images
+  
 
 # Logging and PL-Trainer Settings
 custom_configs:
@@ -59,15 +66,21 @@ custom_configs:
     log_input_stats: True
     check_val_every_n_epoch: 1
     time_series_frequency_epochs: 15
+    time_series_log_all: False
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
-    load_weights_only: False # Load ckpt file only
+    load_weights_only: True # Load ckpt file only
     weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [2]
+    devices: [3]
     strategy: "ddp" # ['ddp', 'dp']
+  
+  # setting sfor experimentation
+  experimentation:
+    save_val_df: True # saves validation dataframe at every epoch
+
 
 # Optim Scheduler Settings
 Schedulers:
@@ -91,13 +104,17 @@ Data:
   persistent_workers: True
 
   # Padding for removal of edge artifacts
-  padding: True
+  padding: False
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: 'worldstrat' # ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat','mixed']
-  data_dir:  #'/data1/simon/datasets/inf_data/' 
-  spectral_matching: "none" #'histogram'
+  # If mixed dataset, input list in dataset_type
+  # If single dataset, input String in dataset_type
+  # Options: ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat']
+  dataset_type: ['S2_100k']  
+  
+  
+  # dataset settings
   sen2naip_settings:
     image_size: 256
     base_path: "/data2/simon/"
@@ -108,15 +125,20 @@ Data:
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
     no_images: 1000
-  S2_75k:
+  S2_75k_settings:
     image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
     return_coords: True
-  S2_100k:
+  S2_100k_settings:
     image_size: 256
     base_path: "/data2/simon/s100k/images/"
     return_coords: True
   worldstrat_settings:
-    image_type: "lr" # ["lr","hr"]
+    image_type: "hr" # ["lr","hr"]
     image_size: 256
     return_coords: True
+
+
+  # TODO: check if we can remove this
+  #data_dir:  #'/data1/simon/datasets/inf_data/' 
+  #spectral_matching: "none" #'histogram'

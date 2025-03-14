@@ -93,6 +93,7 @@ class Px2Px_PL(pl.LightningModule):
             if self.config.satclip.satclip_style=="concat":
                 pred = self.netG(input)
             elif self.config.satclip.satclip_style=="inject":
+                # TODO: Fix this for multiplication injection
                 pred = self.netG(input,embeds)
             else:
                 raise NotImplementedError("SatClip Style not recognized")
@@ -128,15 +129,23 @@ class Px2Px_PL(pl.LightningModule):
             batch = {"rgb":rgb,"nir":torch.Tensor([0])}
             rgb,_ = self.extract_batch(batch) # only gets rgb and nir
             nir_pred = self.forward(rgb) # pred on only rgb
+            
+        # 1. If Using SATCLIP
         else: # self.satclip==True
+            
+            # 1.1 Concatenation Style
             if self.config.satclip.satclip_style=="concat":
                 batch = {"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords}
                 rgb,_ = self.extract_batch(batch) # handles embedding extraction
                 nir_pred = self.forward(rgb) # pred on rgb+embeds 
+            
+            # 1.2 Injection Style
             elif self.config.satclip.satclip_style=="inject":
                 batch = {"rgb":rgb,"nir":torch.Tensor([0]),"coords":coords}
                 rgb,_,embeds = self.extract_batch(batch)
                 nir_pred = self.forward(rgb,embeds) # pred on rgb+embeds 
+            
+            # 1.3 Raise Error if Style not recognized
             else:
                 raise NotImplementedError("SatClip Style not recognized, choose 'concat' or 'inject'")
 
@@ -297,50 +306,35 @@ class Px2Px_PL(pl.LightningModule):
 
                     
     def on_validation_epoch_end(self):
-        # if first epoch, save config to experiment path
+
+        # if first (after 1) epoch, save config to experiment path
         try:
-            if self.current_epoch==0:
-                out_path = os.path.join(self.dir_save_checkpoints,"config.yaml")
+            if self.current_epoch==1:
+                out_path = os.path.join(self.trainer.checkpoint_callback.dirpath,"config.yaml")
                 OmegaConf.save(self.config, out_path)
-        except:
-            pass
+        except Exception as e:
+            print("Error in saving config to experiment path: ",e)
+
+        # Run Validation Epoch with dataet metrics saving
+        save_val_df = self.config.experimentation.save_val_df
+        if save_val_df:
+            try:
+                if self.current_epoch>=1:
+                    from validation_utils.spider_validation_callback import spider_validation_callback
+                    out_path = self.trainer.checkpoint_callback.dirpath
+                    spider_validation_callback(model=self,
+                                            ds=self.trainer.datamodule.val_dataloader().dataset,
+                                            satclip=self.satclip,
+                                            folder=out_path,
+                                            epoch_no=self.current_epoch)
+            except Exception as e:
+                print("Error in spider callback validation and saving: ",e)
+
             
         # Time Series Logging
         if self.logger and hasattr(self.logger, 'experiment'):
             # if epoch is a multiple of 10, log time series
             if self.current_epoch % self.config.custom_configs.Logging.time_series_frequency_epochs == 0:
-                # predict time series and get plot for WandB
-                pil_image_bavaria = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_bavaria/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline Bavaria":  wandb.Image(pil_image_bavaria)}) # log plot
-                del pil_image_bavaria
-
-                pil_image_texas = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_texas/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_texas)}) # log plot
-                del pil_image_texas
-
-                pil_image_michigan = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_michigan/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
-                del pil_image_michigan
-
-                pil_image_california = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_california/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline California":  wandb.Image(pil_image_california)}) # log plot
-                del pil_image_california
 
                 pil_image_texas_cropcircles = calculate_and_plot_timeline(model = self,
                                                         device=self.device,
@@ -349,30 +343,69 @@ class Px2Px_PL(pl.LightningModule):
                                                         mean_patch_size=4)
                 self.logger.experiment.log({"Images/Timeline Tx_CropCircles":  wandb.Image(pil_image_texas_cropcircles)}) # log plot
                 del pil_image_texas_cropcircles
+            
+                full_logging = self.config.custom_configs.Logging.time_series_log_all
+                if full_logging:
+                    # predict time series and get plot for WandB
+                    pil_image_bavaria = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_bavaria/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline Bavaria":  wandb.Image(pil_image_bavaria)}) # log plot
+                    del pil_image_bavaria
 
-                pil_image_brazil = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_brazil/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline Brazil":  wandb.Image(pil_image_brazil)}) # log plot
-                del pil_image_brazil
+                    pil_image_texas = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_texas/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_texas)}) # log plot
+                    del pil_image_texas
 
-                pil_image_iowa = calculate_and_plot_timeline(model = self,
-                                                        device=self.device,
-                                                        root_dir="validation_utils/time_series_iowa/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
-                                                        mean_patch_size=4)
-                self.logger.experiment.log({"Images/Timeline Iowa":  wandb.Image(pil_image_iowa)}) # log plot
-                del pil_image_iowa
+                    pil_image_michigan = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_michigan/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
+                    del pil_image_michigan
 
-        else: # save to local if there is no logger being used
+                    pil_image_california = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_california/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline California":  wandb.Image(pil_image_california)}) # log plot
+                    del pil_image_california
+
+
+
+                    pil_image_brazil = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_brazil/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline Brazil":  wandb.Image(pil_image_brazil)}) # log plot
+                    del pil_image_brazil
+
+                    pil_image_iowa = calculate_and_plot_timeline(model = self,
+                                                            device=self.device,
+                                                            root_dir="validation_utils/time_series_iowa/*.tif",
+                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            mean_patch_size=4)
+                    self.logger.experiment.log({"Images/Timeline Iowa":  wandb.Image(pil_image_iowa)}) # log plot
+                    del pil_image_iowa
+                
+                
+                else: # keeping order. If full_logging is False, only log Texas
+                    pass
+            else: # if not a multiple of 10 epochs, pass
+                pass
+        else: # if no logger detected in PL trainer
             pass
-            #pil_image_bavaria.save("validation_utils/timeline_bavaria.png")
-            #pil_image_texas.save("validation_utils/timeline_texas.png")
-            #pil_image_michigan.save("validation_utils/timeline_michigan.png")
 
-        # delete images to avoid memory issues
+        # delete images to avoid memory leak issues
         torch.cuda.empty_cache()
         gc.collect()
                 
@@ -397,6 +430,7 @@ class Px2Px_PL(pl.LightningModule):
         # return if no location encoding wanted
         if not self.satclip:
             return rgb, nir
+        
         else: # if self.satclip==True
             coords = batch["coords"] # extract coordinates
 

@@ -20,8 +20,8 @@ class S2_100k(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
         """        
         self.config = config
-        self.root_dir = self.config.Data.S2_100k.base_path
-        self.patch_size = self.config.Data.S2_100k.image_size
+        self.root_dir = self.config.Data.S2_100k_settings.base_path
+        self.patch_size = self.config.Data.S2_100k_settings.image_size
         self.phase=phase
         
         # do assertions before starting to build dataset
@@ -147,7 +147,7 @@ class S2_100k(Dataset):
                 rgb_nir_bands = [2, 3, 4, 8]
                 patch = src.read(rgb_nir_bands)
 
-                if self.config.Data.S2_100k.return_coords:
+                if self.config.Data.S2_100k_settings.return_coords:
                     # get centroid lon/lat
                     crs = src.crs
                     trans = src.transform
@@ -177,7 +177,7 @@ class S2_100k(Dataset):
             
         # extract RGB and NIR bands
         batch = {"rgb": rgb, "nir": nir}
-        if self.config.Data.S2_rand_settings.return_coords:
+        if self.config.Data.S2_100k_settings.return_coords:
             batch["coords"] = coords
         
         return(batch)

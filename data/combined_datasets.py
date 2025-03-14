@@ -1,6 +1,6 @@
 from torch.utils.data import ConcatDataset, Subset, ChainDataset
 from data.S2_dataset import S2_datamodule, S2_rand_dataset
-from data.S2NAIP_final import S2NAIP_dm, SEN2NAIPv2
+from data.SEN2NAIP_dataset import S2NAIP_dm, SEN2NAIPv2
 from data.s2_75k_dataset import S2_75k,S2_75k_datamodule
 from data.s100k_dataset import S2_100k,S2_100k_datamodule
 from pytorch_lightning import LightningDataModule
@@ -44,6 +44,15 @@ class CombinedDataModule(LightningDataModule):
         
 if __name__=="__main__":
     from omegaconf import OmegaConf
+    from tqdm import tqdm
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     dm = CombinedDataModule(config)
       
+    """
+    # plot Means of dataset as histogram
+    import matplotlib.pyplot as plt
+    plt.hist(mean_rgb,bins=50,alpha=0.5,label="RGB")
+    plt.hist(mean_nir,bins=50,alpha=0.5,label="NIR")
+    plt.legend()
+    plt.savefig("mean_histogram_WSHR_S2NAIP.png")
+    """

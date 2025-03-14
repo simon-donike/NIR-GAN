@@ -18,8 +18,8 @@ class S2_75k(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.config = config
-        self.root_dir = self.config.Data.S2_75k.base_path
-        self.patch_size = self.config.Data.S2_75k.image_size
+        self.root_dir = self.config.Data.S2_75k_settings.base_path
+        self.patch_size = self.config.Data.S2_75k_settings.image_size
         self.phase=phase
         
         # read all files in directory
@@ -66,7 +66,7 @@ class S2_75k(Dataset):
                 
                 patch = src.read(window=((y, y + self.patch_size), (x, x + self.patch_size)))
 
-                if self.config.Data.S2_75k.return_coords:
+                if self.config.Data.S2_75k_settings.return_coords:
                     # get centroid lon/lat
                     crs = src.crs
                     trans = src.transform

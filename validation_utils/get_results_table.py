@@ -139,7 +139,6 @@ def create_val_metrics(config_path,folder):
     gdf = clean_economy(gdf)
     gdf = gdf.loc[:, ~gdf.columns.duplicated()] # remove double geo column
         
-        
     # get current data and time string
 
     #create folder

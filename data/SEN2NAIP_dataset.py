@@ -13,7 +13,7 @@ import gc
 
 
 # Define your dataset class
-class SEN2NAIPv2(Dataset):
+class SEN2NAIP(Dataset):
     def __init__(self, config, phase="train"):        
         # extract infos from config
         self.config = config
@@ -193,8 +193,8 @@ class S2NAIP_dm(pl.LightningDataModule):
         # Initialize the dataset
         self.config=config
         self.num_workers = config.Data.num_workers
-        self.dataset_train = SEN2NAIPv2(config,phase="train")
-        self.dataset_val = SEN2NAIPv2(config,phase="val")
+        self.dataset_train = SEN2NAIP(config,phase="train")
+        self.dataset_val = SEN2NAIP(config,phase="val")
 
     def train_dataloader(self):        
         return DataLoader(self.dataset_train,batch_size=self.config.Data.train_batch_size,

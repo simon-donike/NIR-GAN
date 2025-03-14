@@ -11,7 +11,7 @@ from pyproj import Transformer
 import geopandas as gpd
 
 # Step 1: Define a custom dataset
-class worldstrat_ds(Dataset):
+class worldstrat(Dataset):
     def __init__(self, config,phase="train",metadata_csv="/data1/simon/GitHub/worldstrat/pretrained_model/metadata_ablation.geojson"):
         self.data = gpd.read_file(metadata_csv)
         self.image_source = config.Data.worldstrat_settings.image_type
@@ -21,6 +21,10 @@ class worldstrat_ds(Dataset):
         self.config = config
         self.image_size = self.config.Data.worldstrat_settings.image_size
         self.return_coords = self.config.Data.worldstrat_settings.return_coords
+
+        # set padding settings
+        if self.config.Data.padding:
+            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
         
         if phase == "train":
             # select 80 percent of the data for training
@@ -145,10 +149,10 @@ class worldstrat_ds(Dataset):
         # Fetch data at a specific index
         if self.image_source == "lr":
             im = self.get_lr(index)
-            im = im / 10000
+            #im = im / 10000
         elif self.image_source == "hr":
             im = self.get_hr(index)
-            im = im # /10000
+            im = im  /10000
             im = self.change_resolution(im, factor=0.6) # go from 1.5 to 2.5m resolution for HR image
 
         # crop to square, crop center to desired size of 128/512
@@ -159,6 +163,11 @@ class worldstrat_ds(Dataset):
         # extract bands
         rgb = im[:3,:,:]
         nir = im[3:,:,:]
+
+        # apply padding
+        if self.config.Data.padding:
+            rgb = self.pad(rgb)
+            nir = self.pad(nir)
 
         return_dict = {"rgb":torch.Tensor(rgb),"nir":torch.Tensor(nir)}
 
@@ -175,8 +184,8 @@ class worldstrat_datamodule(pl.LightningDataModule):
         super().__init__()
         self.config = config
         # Initialize the dataset
-        self.dataset_train = worldstrat_ds(self.config,phase="train")
-        self.dataset_val = worldstrat_ds(self.config,phase="val")
+        self.dataset_train = worldstrat(self.config,phase="train")
+        self.dataset_val = worldstrat(self.config,phase="val")
         
 
     def train_dataloader(self):        
@@ -191,6 +200,17 @@ class worldstrat_datamodule(pl.LightningDataModule):
 if __name__=="__main__":
     from omegaconf import OmegaConf
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-    ds = worldstrat_ds(config)
+    ds = worldstrat(config)
     ds_dm = worldstrat_datamodule(config)
     _ = ds.__getitem__(10)
+    rgb = _["rgb"]
+    nir = _["nir"]
+    coords = _["coords"]
+
+    for i in range(100):
+        _ = ds.__getitem__(i)
+        rgb = _["rgb"]
+        nir = _["nir"]
+        coords = _["coords"]
+        print(rgb.mean().item(),nir.mean().item())
+
