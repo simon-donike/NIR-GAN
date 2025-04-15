@@ -3,6 +3,7 @@ import random
 import torch
 from torch.utils.data import Dataset
 import rasterio
+from rasterio.transform import Affine
 import numpy as np
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
@@ -40,6 +41,9 @@ class worldstrat(Dataset):
         hr_path = self.hr_base_path + str(row["id"]) + "/" + str(row["id"]) + "_ps.tiff"
         with rasterio.open(hr_path) as src:
             hr = src.read()
+                    # Manually set a null transform if not present
+            if src.transform.is_identity:
+                src._transform = Affine.identity()
         hr = torch.tensor(hr.astype(np.float32))
         return hr
     
@@ -213,4 +217,5 @@ if __name__=="__main__":
         nir = _["nir"]
         coords = _["coords"]
         print(rgb.mean().item(),nir.mean().item())
+        break
 

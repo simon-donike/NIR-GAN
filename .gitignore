@@ -1,4 +1,5 @@
 # General Files
+
 *.tif 
 __pycache__/
 wandb/
@@ -24,6 +25,8 @@ playground/*
 
 
 # Folders Automated
+validation_utils/paper_graphs
+validation_utils/paper_graphs/
 validation_utils/time_series_iowa/
 validation_utils/time_series_texas_cropcircles/
 validation_utils/time_series_california/

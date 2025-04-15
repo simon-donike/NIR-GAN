@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
 import os
+import re
 
-def plot_radar_comparison(sc, no_sc, data_type,folder="validation_utils/metrics_folder/"):
+
+def plot_radar_comparison(sc, no_sc, data_type,out_name="",folder="validation_utils/metrics_folder/"):
     df1 = sc
     df2 = no_sc
     # Aggregate data by the specified type
@@ -55,13 +57,66 @@ def plot_radar_comparison(sc, no_sc, data_type,folder="validation_utils/metrics_
     # SSIM
     plot_radar(ax2, stats_df1['ssim'].tolist(), stats_df2['ssim'].tolist(), 'SSIM')
 
+    if out_name != "":
+        out_name = "_"+out_name
     # Save the plot and close
-    out_file_name = f"metrics_radar_satclip_{data_type}.png"
+    out_file_name = f"metrics_radar_satclip{out_name}_{data_type}.png"
     out_file_name = out_file_name.replace(" ", "_")
     out_file_name = os.path.join(folder, out_file_name)
     plt.tight_layout()
     plt.savefig(out_file_name)
     plt.close()
+    
+    
+
+# read all geojson files in the folder
+folder = 'logs/exp_NIR_GAN_SatCLIP/2025-03-14_17-29-03_metrics'
+geojsons_paths = []
+
+for file in os.listdir(folder):
+    if file.endswith('.geojson') or file.endswith('.json'):
+        path = os.path.join(folder, file)
+        geojsons_paths.append(path)
+geojsons_paths = list(geojsons_paths)
+# order list
+geojsons_paths.sort()
+
+
+# iterate over all epoch files
+out_folder = "validation_utils/paper_graphs/"
+for f in geojsons_paths:
+    e = int(re.search(r'_e(\d+)\.geojson$', f).group(1))
+    e_str = f"E{e:03d}"
+    print(f"Doing {e_str}...")
+    
+    # read files
+    gdf_SatCLIP = gpd.read_file(f)
+    gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/13_03_2025_14_47_01/validation_metrics_ablation_satclip_False.geojson")    
+    
+    # start plotting
+    out_folder = "validation_utils/paper_graphs/"
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name=e_str,folder=out_folder)
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name=e_str,folder=out_folder)
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name=e_str,folder=out_folder)
+    
+    
+    
+    
+    
+    
+    
+# SINGLE EXAMPLE    
+# Do plotting for the validation metrics and PAPER
+gdf_SatCLIP = gpd.read_file("logs/exp_NIR_GAN_SatCLIP/2025-03-14_17-29-03_metrics/validation_metrics_ablation_satclip_True_e86.geojson")
+gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/13_03_2025_14_47_01/validation_metrics_ablation_satclip_False.geojson")
+
+# plot stuff
+out_folder = "validation_utils/paper_graphs/"
+plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name="",folder=out_folder)
+plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name="",folder=out_folder)
+plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name="",folder=out_folder)
+
+    
 
 
 if __name__ == "__main__":
@@ -71,8 +126,11 @@ if __name__ == "__main__":
     gdf_SatCLIP = gpd.read_file("validation_utils/metrics_folder/validation_metrics_ablation_satclip_True.geojson")
 
     # start plotting
-    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Continent")
-    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"Koppen_Class")
-    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,"economy")
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name="")
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name="")
+    plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name="")
+    
+    
+
 
 

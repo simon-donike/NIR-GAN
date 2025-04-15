@@ -316,7 +316,7 @@ class Px2Px_PL(pl.LightningModule):
             print("Error in saving config to experiment path: ",e)
 
         # Run Validation Epoch with dataet metrics saving
-        save_val_df = self.config.experimentation.save_val_df
+        save_val_df = self.config.custom_configs.experimentation.save_val_df
         if save_val_df:
             try:
                 if self.current_epoch>=1:
@@ -339,7 +339,7 @@ class Px2Px_PL(pl.LightningModule):
                 pil_image_texas_cropcircles = calculate_and_plot_timeline(model = self,
                                                         device=self.device,
                                                         root_dir="validation_utils/time_series_texas_cropcircles/*.tif",
-                                                        size_input=self.config.Data.S2_100k.image_size,
+                                                        size_input=self.config.Data.S2_100k_settings.image_size,
                                                         mean_patch_size=4)
                 self.logger.experiment.log({"Images/Timeline Tx_CropCircles":  wandb.Image(pil_image_texas_cropcircles)}) # log plot
                 del pil_image_texas_cropcircles
@@ -350,7 +350,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_bavaria = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_bavaria/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline Bavaria":  wandb.Image(pil_image_bavaria)}) # log plot
                     del pil_image_bavaria
@@ -358,7 +358,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_texas = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_texas/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline Texas":  wandb.Image(pil_image_texas)}) # log plot
                     del pil_image_texas
@@ -366,7 +366,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_michigan = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_michigan/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline Michigan":  wandb.Image(pil_image_michigan)}) # log plot
                     del pil_image_michigan
@@ -374,7 +374,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_california = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_california/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline California":  wandb.Image(pil_image_california)}) # log plot
                     del pil_image_california
@@ -384,7 +384,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_brazil = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_brazil/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline Brazil":  wandb.Image(pil_image_brazil)}) # log plot
                     del pil_image_brazil
@@ -392,7 +392,7 @@ class Px2Px_PL(pl.LightningModule):
                     pil_image_iowa = calculate_and_plot_timeline(model = self,
                                                             device=self.device,
                                                             root_dir="validation_utils/time_series_iowa/*.tif",
-                                                            size_input=self.config.Data.S2_100k.image_size,
+                                                            size_input=self.config.Data.S2_100k_settings.image_size,
                                                             mean_patch_size=4)
                     self.logger.experiment.log({"Images/Timeline Iowa":  wandb.Image(pil_image_iowa)}) # log plot
                     del pil_image_iowa

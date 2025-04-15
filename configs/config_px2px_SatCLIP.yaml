@@ -74,7 +74,7 @@ custom_configs:
     weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [3]
+    devices: [2,3]
     strategy: "ddp" # ['ddp', 'dp']
   
   # setting sfor experimentation
@@ -110,8 +110,8 @@ Data:
   # Detailed Dataset Setttings
   # If mixed dataset, input list in dataset_type
   # If single dataset, input String in dataset_type
-  # Options: ['S2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat']
-  dataset_type: ['S2_100k']  
+  # Options: ['SEN2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat']
+  dataset_type: ['SEN2NAIP','worldstrat'] # 'S2NAIP' # 'S2_rand' # 'S2_75k' # 'S2_100k' # 'worldstrat'
   
   
   # dataset settings
