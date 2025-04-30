@@ -205,7 +205,7 @@ class S2NAIP_dm(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.num_workers,drop_last=True,pin_memory=True,
+                          shuffle=False, num_workers=self.num_workers,drop_last=True,pin_memory=True,
                           persistent_workers=True)
 
 

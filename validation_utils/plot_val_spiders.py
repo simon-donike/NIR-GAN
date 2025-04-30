@@ -13,6 +13,25 @@ import re
 def plot_radar_comparison(sc, no_sc, data_type,out_name="",folder="validation_utils/metrics_folder/"):
     df1 = sc
     df2 = no_sc
+    
+    # Clean up Koppen if that's the stage
+    if data_type == "Koppen_Class":
+        # replace Koppen Names before plotting
+        label_map = {
+        'A': 'Tropical',
+        'B': 'Arid',
+        'C': 'Temperate',
+        'D': 'Continental',
+        'E': 'Polar',
+        'U': 'Undetermined',
+                }
+        # remove entries with class undetermined
+        df1 = df1[df1['Koppen_Class'] != 'U'].copy()
+        df2 = df2[df2['Koppen_Class'] != 'U'].copy()
+
+        df1['Koppen_Class'] = df1['Koppen_Class'].replace(label_map)
+        df2['Koppen_Class'] = df2['Koppen_Class'].replace(label_map)
+    
     # Aggregate data by the specified type
     stats_df1 = df1.groupby(data_type).agg({
         'psnr': 'mean',
@@ -89,22 +108,23 @@ for f in geojsons_paths:
     e_str = f"E{e:03d}"
     print(f"Doing {e_str}...")
     
+    
     # read files
     gdf_SatCLIP = gpd.read_file(f)
     gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/13_03_2025_14_47_01/validation_metrics_ablation_satclip_False.geojson")    
+    #gdf_noSatCLIP = gpd.read_file("validation_utils/metrics_folder/12_03_2025_16_29_31/validation_metrics_ablation_satclip_False.geojson")    
     
     # start plotting
     out_folder = "validation_utils/paper_graphs/"
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name=e_str,folder=out_folder)
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name=e_str,folder=out_folder)
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name=e_str,folder=out_folder)
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+"""
 # SINGLE EXAMPLE    
 # Do plotting for the validation metrics and PAPER
 gdf_SatCLIP = gpd.read_file("logs/exp_NIR_GAN_SatCLIP/2025-03-14_17-29-03_metrics/validation_metrics_ablation_satclip_True_e86.geojson")
@@ -115,10 +135,10 @@ out_folder = "validation_utils/paper_graphs/"
 plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name="",folder=out_folder)
 plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name="",folder=out_folder)
 plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name="",folder=out_folder)
-
+"""
     
 
-
+"""
 if __name__ == "__main__":
     
     # read files
@@ -129,6 +149,7 @@ if __name__ == "__main__":
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Continent",out_name="")
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="Koppen_Class",out_name="")
     plot_radar_comparison(gdf_SatCLIP,gdf_noSatCLIP,data_type="economy",out_name="")
+"""
     
     
 

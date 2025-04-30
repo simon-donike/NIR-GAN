@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from pyproj import Transformer
 
-class S2_75k(Dataset):
+class L8_15k(Dataset):
     def __init__(self, config, phase="train"):
         """
         Args:
@@ -18,8 +18,8 @@ class S2_75k(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
         """
         self.config = config
-        self.root_dir = self.config.Data.S2_75k_settings.base_path
-        self.patch_size = self.config.Data.S2_75k_settings.image_size
+        self.root_dir = self.config.Data.L8_15k_settings.base_path
+        self.patch_size = self.config.Data.L8_15k_settings.image_size
         self.phase=phase
         
         # read all files in directory
@@ -36,7 +36,7 @@ class S2_75k(Dataset):
             self.image_paths = self.image_paths[:-100]
         if self.phase=="val":
             self.image_paths = self.image_paths[-100:]
-        print(f"Instanciated S2_75k dataset with {len(self.image_paths)} datapoints for phase: {self.phase}")
+        print(f"Instanciated L8_15k dataset with {len(self.image_paths)} datapoints for phase: {self.phase}")
         
         # shuffle list after split
         random.shuffle(self.image_paths)
@@ -66,7 +66,7 @@ class S2_75k(Dataset):
                 
                 patch = src.read(window=((y, y + self.patch_size), (x, x + self.patch_size)))
 
-                if self.config.Data.S2_75k_settings.return_coords:
+                if self.config.Data.L8_15k_settings.return_coords:
                     # get centroid lon/lat
                     crs = src.crs
                     trans = src.transform
@@ -82,7 +82,7 @@ class S2_75k(Dataset):
             return self.__getitem__(rand_idx)
 
         # turn to 0..1
-        patch = patch / 10000.0
+        #patch = patch / 10000.0
         patch = torch.from_numpy(patch).float()
         patch = torch.clamp(patch, 0, 1)
         rgb = patch[:3,:,:]
@@ -93,20 +93,20 @@ class S2_75k(Dataset):
             
         # extract RGB and NIR bands
         batch = {"rgb": rgb, "nir": nir}
-        if self.config.Data.S2_rand_settings.return_coords:
+        if self.config.Data.L8_15k_settings.return_coords:
             batch["coords"] = coords
             
         return(batch)
                 
                 
                 
-class S2_75k_datamodule(pl.LightningDataModule):
+class L8_15k_datamodule(pl.LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
         # Initialize the dataset
-        self.dataset_train = S2_75k(self.config,phase="train")
-        self.dataset_val = S2_75k(self.config,phase="val")
+        self.dataset_train = L8_15k(self.config,phase="train")
+        self.dataset_val = L8_15k(self.config,phase="val")
         
 
     def train_dataloader(self):        
@@ -121,8 +121,8 @@ class S2_75k_datamodule(pl.LightningDataModule):
 
 if __name__=="__main__":
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-    ds = S2_75k(config)
-    dm = S2_75k_datamodule(config)
+    ds = L8_15k(config)
+    dm = L8_15k_datamodule(config)
     batch = next(iter(dm.train_dataloader()))
     coords = batch["coords"]
 

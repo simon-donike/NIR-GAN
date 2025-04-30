@@ -137,6 +137,10 @@ Data:
     image_type: "hr" # ["lr","hr"]
     image_size: 256
     return_coords: True
+  L8_15k_settings:
+    base_path: "/data2/simon/nirgan_l8/"
+    image_size: 256
+    return_coords: True
 
 
   # TODO: check if we can remove this

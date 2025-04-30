@@ -1,7 +1,7 @@
 from torch.utils.data import ConcatDataset, Subset, ChainDataset
 from data.S2_dataset import S2_datamodule, S2_rand_dataset
 from data.SEN2NAIP_dataset import S2NAIP_dm, SEN2NAIPv2
-from data.s2_75k_dataset import S2_75k,S2_75k_datamodule
+from data.l8_15k_dataset import S2_75k,S2_75k_datamodule
 from data.s100k_dataset import S2_100k,S2_100k_datamodule
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader

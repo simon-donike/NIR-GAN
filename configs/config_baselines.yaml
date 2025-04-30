@@ -1,0 +1,94 @@
+base_configs:
+  model_name: "CNN_NIR" # ["LinearNIR","MLP_NIR","CNN_NIR"]
+  learning_rate: 1e-3
+
+
+# Logging and PL-Trainer Settings
+custom_configs:
+  Logging:
+    wandb_project: "exp_NIR_GAN_baselines"
+    num_val_images: 5
+    log_ndvi: True
+    log_input_stats: True
+    check_val_every_n_epoch: 1
+    time_series_frequency_epochs: 15
+    time_series_log_all: False
+  Model:
+    load_checkpoint: False # Continue PL-Style
+    ckpt_path: ""
+    load_weights_only: False # Load ckpt file only
+    weights_path: ""
+  Training:
+    accelerator: "gpu"
+    devices: [0]
+    strategy: "ddp" # ['ddp', 'dp']
+  
+  # setting sfor experimentation
+  experimentation:
+    save_val_df: True # saves validation dataframe at every epoch
+
+
+# Optim Scheduler Settings
+Schedulers:
+  metric: 'val/L1'
+  patience_g: 5
+  patience_d: 5
+  factor_g: 0.5
+  factor_d: 0.5
+  verbose: True
+  interval: 'epoch'
+
+# Data Settings
+Data:
+  normalize: False # TODO: removed this option
+  
+  # Dataloader Settings
+  train_batch_size: 32 # 24 in normal scenario
+  val_batch_size: 5
+  num_workers: 16
+  prefetch_factor: 2
+  persistent_workers: True
+
+  # Padding for removal of edge artifacts
+  padding: False
+  padding_amount: 10
+
+  # Detailed Dataset Setttings
+  # If mixed dataset, input list in dataset_type
+  # If single dataset, input String in dataset_type
+  # Options: ['SEN2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat']
+  dataset_type: ['S2NAIP'] # 'S2NAIP' # 'S2_rand' # 'S2_75k' # 'S2_100k' # 'worldstrat'
+  
+  
+  # dataset settings
+  sen2naip_settings:
+    image_size: 256
+    base_path: "/data2/simon/"
+    dataset_type: "synthetic2"
+    return_coords: True
+  S2_rand_settings:
+    image_size: 256
+    base_path: "/data3/val_s2_tiles/"
+    return_coords: True
+    no_images: 1000
+  S2_75k_settings:
+    image_size: 256
+    base_path: "/data2/simon/nirgan_s2/"
+    return_coords: True
+  S2_100k_settings:
+    image_size: 256
+    base_path: "/data2/simon/s100k/images/"
+    return_coords: True
+  worldstrat_settings:
+    image_type: "hr" # ["lr","hr"]
+    image_size: 256
+    return_coords: True
+  L8_15k_settings:
+    base_path: "/data2/simon/nirgan_l8/"
+    image_size: 256
+    return_coords: True
+
+
+  # TODO: check if we can remove this
+  #data_dir:  #'/data1/simon/datasets/inf_data/' 
+  #spectral_matching: "none" #'histogram'

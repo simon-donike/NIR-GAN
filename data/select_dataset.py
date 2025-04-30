@@ -27,11 +27,14 @@ def dataset_selector(config):
             from data.worldstrat import worldstrat_datamodule
             return worldstrat_datamodule(config)
         elif dataset_type == "S2_75k":
-            from data.s2_75k_dataset import S2_75k_datamodule
+            from data.l8_15k_dataset import S2_75k_datamodule
             return S2_75k_datamodule(config)
         elif dataset_type == "S2_100k":
             from data.s100k_dataset import S2_100k_datamodule
             return S2_100k_datamodule(config)
+        elif dataset_type == "L8_15k":
+            from data.l8_15k_dataset import L8_15k_datamodule
+            return L8_15k_datamodule(config)
         else:
             raise NotImplementedError(f"Dataset Type {dataset_type} not implemented")
 

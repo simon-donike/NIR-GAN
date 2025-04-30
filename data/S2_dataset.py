@@ -131,7 +131,7 @@ class S2_datamodule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.config.Data.num_workers,drop_last=True)
+                          shuffle=False, num_workers=self.config.Data.num_workers,drop_last=True)
 
 
 if __name__ == "__main__":

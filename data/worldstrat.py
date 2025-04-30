@@ -198,7 +198,7 @@ class worldstrat_datamodule(pl.LightningDataModule):
 
     def val_dataloader(self):
         return DataLoader(self.dataset_val,batch_size=self.config.Data.val_batch_size,
-                          shuffle=True, num_workers=self.config.Data.num_workers,drop_last=True)
+                          shuffle=False, num_workers=self.config.Data.num_workers,drop_last=True)
  
 
 if __name__=="__main__":
@@ -211,7 +211,7 @@ if __name__=="__main__":
     nir = _["nir"]
     coords = _["coords"]
 
-    for i in range(100):
+    for i in range(10):
         _ = ds.__getitem__(i)
         rgb = _["rgb"]
         nir = _["nir"]

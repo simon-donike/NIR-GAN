@@ -19,25 +19,43 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training script for NIR-GAN.')
     parser.add_argument('--satclip', required=False,default=True,
                         help='Enable satclip (default: True)')
+    parser.add_argument('--baseline', required=False,default=False,
+                        help='Train Baseline Model (default: False)')
     args = parser.parse_args()
     args.satclip = str2bool(args.satclip)
+    args.satclip = str2bool(args.satclip)
+
     print("Satclip:",args.satclip)
 
     # General
     torch.set_float32_matmul_precision('medium')
 
     # load config depending on setting
-    if args.satclip:
-        config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
-    elif not args.satclip:
-        config = OmegaConf.load("configs/config_px2px.yaml") # Standard
+    if args.baseline: # overwrite settings for baseline models
+        config = OmegaConf.load("configs/config_baselines.yaml") # Baseline
     else:
-        raise ValueError("Invalid Argument for Satclip")
+        if args.satclip:
+            config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
+        elif not args.satclip:
+            config = OmegaConf.load("configs/config_px2px.yaml") # Standard
+        else:
+            raise ValueError("Invalid Argument for Satclip")
 
     #############################################################################################################
     " LOAD MODEL "
     #############################################################################################################
-    model = Px2Px_PL(config)
+    if not args.baseline:
+        model = Px2Px_PL(config)
+    else:
+        from model.baseline_models import Linear_NIR,MLP_NIR,CNN_NIR
+        if config.base_configs.model_name == "Linear_NIR":
+            model = Linear_NIR(config)
+        elif config.base_configs.model_name == "MLP_NIR":
+            model = MLP_NIR(config)
+        elif config.base_configs.model_name == "CNN_NIR":
+            model = CNN_NIR(config)
+        else:
+            raise ValueError("Invalid Model Name")
 
     # set reload checkpoint settings for trainer
     if config.custom_configs.Model.load_weights_only==True:
@@ -102,8 +120,9 @@ if __name__ == '__main__':
                     strategy=config.custom_configs.Training.strategy, 
                     check_val_every_n_epoch=config.custom_configs.Logging.check_val_every_n_epoch,
                     #val_check_interval=0.25,
-                    limit_val_batches=25,
-                    max_epochs=99999,
+                    limit_val_batches=5,
+                    max_steps=30000,
+                    max_epochs=20,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,
