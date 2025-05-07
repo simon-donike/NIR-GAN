@@ -1,4 +1,5 @@
 # General Files
+*.pkl
 
 *.tif 
 __pycache__/

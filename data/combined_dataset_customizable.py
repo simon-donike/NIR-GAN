@@ -8,7 +8,8 @@ DATASET_CLASSES = {
     "S2_rand_dataset": "data.S2_dataset",
     "S2_75k": "data.s2_75k_dataset",
     "S2_100k": "data.s100k_dataset",
-    "worldstrat": "data.worldstrat"
+    "worldstrat": "data.worldstrat",
+    "L8_15k": "data.l8_15k_dataset",
 }
 
 class CombinedDataModule(LightningDataModule):
@@ -59,6 +60,6 @@ if __name__ == "__main__":
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     
     # Example: Specify which datasets to load
-    datasets = ["worldstrat"]
+    datasets = ["L8_15k"]
 
     dm = CombinedDataModule(config, datasets)

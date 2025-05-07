@@ -25,15 +25,15 @@ if __name__ == '__main__':
     args.satclip = str2bool(args.satclip)
     args.satclip = str2bool(args.satclip)
 
-    print("Satclip:",args.satclip)
-
     # General
     torch.set_float32_matmul_precision('medium')
 
     # load config depending on setting
     if args.baseline: # overwrite settings for baseline models
+        print("Baseline:",args.baseline)
         config = OmegaConf.load("configs/config_baselines.yaml") # Baseline
     else:
+        print("Satclip:",args.satclip)
         if args.satclip:
             config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
         elif not args.satclip:
@@ -118,11 +118,11 @@ if __name__ == '__main__':
     trainer = Trainer(accelerator=config.custom_configs.Training.accelerator,
                     devices=config.custom_configs.Training.devices,
                     strategy=config.custom_configs.Training.strategy, 
-                    check_val_every_n_epoch=config.custom_configs.Logging.check_val_every_n_epoch,
-                    #val_check_interval=0.25,
+                    #check_val_every_n_epoch= 10, # config.custom_configs.Logging.check_val_every_n_epoch,
+                    #val_check_interval=50,
                     limit_val_batches=5,
                     max_steps=30000,
-                    max_epochs=20,
+                    #max_epochs=20,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,

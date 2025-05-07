@@ -1,5 +1,5 @@
 base_configs:
-  model_name: "CNN_NIR" # ["LinearNIR","MLP_NIR","CNN_NIR"]
+  model_name: "Linear_NIR" # ["Linear_NIR","MLP_NIR","CNN_NIR"]
   learning_rate: 1e-3
 
 
@@ -56,9 +56,10 @@ Data:
   # Detailed Dataset Setttings
   # If mixed dataset, input list in dataset_type
   # If single dataset, input String in dataset_type
-  # Options: ['SEN2NAIP', 'S2_rand', 'S2_75k',S2_100k,'worldstrat']
-  dataset_type: ['S2NAIP'] # 'S2NAIP' # 'S2_rand' # 'S2_75k' # 'S2_100k' # 'worldstrat'
-  
+  # Options: ['SEN2NAIP', 'S2_rand',S2_100k,'worldstrat','L8_15k']
+  dataset_type: ['L8_15k'] # S2NAIP ,S2_100k, worldstrat, L8_15k
+  # source ../../envs/bare2/bin/activate
+  # python train.py --baseline y
   
   # dataset settings
   sen2naip_settings:
@@ -74,10 +75,15 @@ Data:
   S2_75k_settings:
     image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: True
     return_coords: True
   S2_100k_settings:
     image_size: 256
     base_path: "/data2/simon/s100k/images/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: True
+    clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
     return_coords: True
   worldstrat_settings:
     image_type: "hr" # ["lr","hr"]
@@ -87,8 +93,3 @@ Data:
     base_path: "/data2/simon/nirgan_l8/"
     image_size: 256
     return_coords: True
-
-
-  # TODO: check if we can remove this
-  #data_dir:  #'/data1/simon/datasets/inf_data/' 
-  #spectral_matching: "none" #'histogram'

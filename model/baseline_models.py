@@ -17,12 +17,13 @@ class Linear_NIR(pl.LightningModule):
         self.linear = nn.Linear(3, 1)
 
     def forward(self, x):
-        return self.linear(x)
+        B, C, H, W = x.shape
+        x = x.permute(0, 2, 3, 1).reshape(-1, 3)
+        x = self.linear(x)
+        return x.reshape(B, 1, H, W)
 
     def training_step(self, batch, batch_idx):
         rgb, nir = batch["rgb"],batch["nir"]  # rgb: [B, 3, H, W], nir: [B, 1, H, W]
-        rgb = rgb.view(-1, 3).float()
-        nir = nir.view(-1, 1).float()
         pred = self(rgb)
         loss = nn.functional.mse_loss(pred, nir)
         self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True, sync_dist=True)
@@ -85,12 +86,14 @@ class MLP_NIR(pl.LightningModule):
         )
 
     def forward(self, x):
-        return self.mlp(x)
+        B, C, H, W = x.shape  # Bx3x256x256
+        x = x.permute(0, 2, 3, 1).reshape(-1, 3)  # (B*H*W)x3
+        x = self.mlp(x)  # (B*H*W)x1
+        x = x.reshape(B, H, W).unsqueeze(1)  # Bx1x256x256
+        return x
 
     def training_step(self, batch, batch_idx):
         rgb, nir = batch["rgb"],batch["nir"]  # rgb: [B, 3, H, W], nir: [B, 1, H, W]
-        rgb = rgb.view(-1, 3).float()
-        nir = nir.view(-1, 1).float()
         pred = self(rgb)
         loss = nn.functional.mse_loss(pred, nir)
         self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True, sync_dist=True)

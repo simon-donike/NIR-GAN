@@ -20,7 +20,7 @@ with open(samples_file) as f:
     data = json.load(f)
 
 #  Randomly select 5 features
-random_features = random.sample(data['features'],10000) #len(data['features']))#, 10)
+random_features = random.sample(data['features'],5000) #len(data['features']))#, 10)
 print("Randomly sampled features:", len(random_features))
 
 # Extract coordinates

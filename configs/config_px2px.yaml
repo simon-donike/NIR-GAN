@@ -104,10 +104,14 @@ Data:
   S2_75k:
     image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: True
     return_coords: True
   S2_100k:
     image_size: 256
     base_path: "/data2/simon/s100k/images/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: True
     return_coords: True
   worldstrat_settings:
     image_type: "lr" # ["lr","hr"]

@@ -8,6 +8,11 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from omegaconf import OmegaConf
 from pyproj import Transformer
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import box
+from shapely.geometry import Point
+from tqdm import tqdm
 
 class S2_75k(Dataset):
     def __init__(self, config, phase="train"):
@@ -31,27 +36,78 @@ class S2_75k(Dataset):
                     self.image_paths.append(os.path.join(dirpath, filename))
         assert len(self.image_paths) > 0, "No images found in the directory"
         
-        # Set train/test/split
-        if self.phase=="train":
-            self.image_paths = self.image_paths[:-100]
-        if self.phase=="val":
-            self.image_paths = self.image_paths[-100:]
-        print(f"Instanciated S2_75k dataset with {len(self.image_paths)} datapoints for phase: {self.phase}")
+        # Create DataFrame
+        df = pd.DataFrame(self.image_paths, columns=["image_path"])
+
+        # Rabdom shuffle after split
+        if self.phase == "train":
+            df = df.iloc[:-100]
+        elif self.phase == "val":
+            df = df.iloc[-100:]
+
+        # Create Dataframe and get metadata information
+        self.image_df = df.sample(frac=1).reset_index(drop=True)  # Shuffle after split
+        self.build_metadata()
         
-        # shuffle list after split
-        random.shuffle(self.image_paths)
-            
+        # keep only europe if CLC mask is enabled
+        if self.config.Data.S2_75k_settings.return_clc_mask:
+            print("Filtering to only include Europe...")
+            self.image_df["continent"] = self.image_df["continent"].astype(str).str.strip()
+            self.image_df = self.image_df[self.image_df["continent"]=="Europe"]
+        print(f"Instantiated S2_75k dataset with {len(self.image_df)} datapoints for phase: {self.phase}")
+                    
         # set padding settings
         if self.config.Data.padding:
             self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+            
+    def build_metadata(self,force_rebuild=False):
+        # check weather metadata pkl exists
+        metadata_file = os.path.join(self.root_dir, "metadata.pkl")
+        if os.path.exists(metadata_file) and not force_rebuild:
+            print("Loading metadata from file...")
+            self.image_df = pd.read_pickle(metadata_file)
+        else:
+            print("No metadata file found, creating new metadata...")
         
+            continents_file = self.config.Data.S2_75k_settings.continent_geojson
+            continents = gpd.read_file(continents_file)
+            continents = continents.to_crs("EPSG:4326")  # Ensure it's in lat/lon
+            
+            geometries = []
+            for path in tqdm(self.image_df["image_path"], desc="Extracting centroids"):
+                with rasterio.open(path) as src:
+                    bounds = src.bounds
+                    src_crs = src.crs
+                    center_x = (bounds.left + bounds.right) / 2
+                    center_y = (bounds.top + bounds.bottom) / 2
+                    pt = gpd.GeoSeries([Point(center_x, center_y)], crs=src_crs).to_crs("EPSG:4326").iloc[0]
+                    geometries.append(pt)
+
+            # Build a GeoDataFrame with transformed centroids
+            centroid_gdf = gpd.GeoDataFrame(
+                self.image_df.copy(),
+                geometry=geometries,
+                crs="EPSG:4326"
+            )
+
+            # Spatial join
+            joined = gpd.sjoin(centroid_gdf, continents, how="left", predicate="intersects")
+            joined = joined.drop(columns=["index_right"])
+            joined = joined.rename(columns={"CONTINENT": "continent"})
+            self.image_df = joined
+            # save to file
+            self.image_df.to_pickle(metadata_file)
+
+            
     def __len__(self):
-        return len(self.image_paths)
+        return len(self.image_df)
     
     def __getitem__(self, idx):
         
         try:
-            with rasterio.open(self.image_paths[idx]) as src:
+            im_path =  self.image_df.loc[idx, "image_path"]
+
+            with rasterio.open(im_path) as src:
                 # Get image dimensions
                 width = src.width
                 height = src.height
@@ -93,9 +149,11 @@ class S2_75k(Dataset):
             
         # extract RGB and NIR bands
         batch = {"rgb": rgb, "nir": nir}
-        if self.config.Data.S2_rand_settings.return_coords:
+        if self.config.Data.S2_75k_settings.return_coords:
             batch["coords"] = coords
-            
+        if self.config.Data.S2_75k_settings.return_clc_mask:
+            pass
+
         return(batch)
                 
                 
@@ -122,10 +180,13 @@ class S2_75k_datamodule(pl.LightningDataModule):
 if __name__=="__main__":
     config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
     ds = S2_75k(config)
-    dm = S2_75k_datamodule(config)
-    batch = next(iter(dm.train_dataloader()))
-    coords = batch["coords"]
+    
+    #m = ds.build_metadata()
+    #dm = S2_75k_datamodule(config)
+    #batch = next(iter(dm.train_dataloader()))
+    #coords = batch["coords"]
 
+    """
     from tqdm import tqdm
     for i in tqdm(dm.train_dataloader()):
         pass
@@ -133,4 +194,5 @@ if __name__=="__main__":
     for i in ds.image_paths:
         if type(i) != str:
             print(i)
+    """
         
