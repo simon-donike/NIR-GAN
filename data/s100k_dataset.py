@@ -11,7 +11,8 @@ from pyproj import Transformer
 from tqdm import tqdm
 import pandas as pd
 from rasterio.mask import mask
-
+from rasterio.enums import Resampling
+from scipy.ndimage import zoom
 
 class S2_100k(Dataset):
     def __init__(self, config, phase="train",overwrite_metadata=False):
@@ -53,7 +54,8 @@ class S2_100k(Dataset):
         
         # keep only Europe if CLC mask is enabled
         if self.config.Data.S2_100k_settings.return_clc_mask:
-            print("Filtering to only include Europe...")
+            print("Filtering to only return images with CLC mask available...")
+            self.metadata = self.metadata[self.metadata["clc_path"]!= None]
             self.metadata = self.metadata[self.metadata["continent"]=="Europe"]
             
         # set padding settings
@@ -166,8 +168,14 @@ class S2_100k(Dataset):
         clc_mask = clc_mask.numpy()
         # for GRID_CODE in csv, get GROUP_ID and assign new value in numpy array
         mapping = dict(zip(df["GRID_CODE"], df["GROUP_ID"]))
+        mapping = {
+                int(k): int(v)
+                for k, v in mapping.items()
+                if pd.notna(k) and pd.notna(v) and isinstance(k, (int, float)) and float(k).is_integer()
+            }
+
         # Remap using numpy vectorized function
-        clc_remapped = np.vectorize(mapping.get)(clc_mask)
+        clc_remapped = np.vectorize(lambda x: mapping.get(x, 0))(clc_mask)
         clc_remapped = np.nan_to_num(clc_remapped, nan=0).astype(np.uint8)  # Optional: fill unmapped with 0
         clc_mask = torch.from_numpy(clc_remapped)
         
@@ -217,7 +225,7 @@ class S2_100k(Dataset):
         if self.config.Data.S2_100k_settings.return_coords:
             batch["coords"] = coords
         if self.config.Data.S2_100k_settings.return_clc_mask:
-            clc_mask = get_clc_mask(self.metadata.iloc[idx]["clc_path"])
+            clc_mask = self.get_clc_mask(self.metadata.iloc[idx]["clc_path"])
             batch["clc_mask"] = clc_mask
         
         return(batch)
@@ -246,6 +254,8 @@ class S2_100k_datamodule(pl.LightningDataModule):
 if __name__=="__main__":
     config = OmegaConf.load("configs/config_baselines.yaml")
     ds = S2_100k(config,overwrite_metadata=True)
+    b = ds.__getitem__(12)
+    print(b["clc_mask"].shape)
     #dm = S2_100k_datamodule(config)
     #batch = next(iter(dm.train_dataloader()))
     #coords = batch["coords"]
@@ -256,88 +266,144 @@ if __name__=="__main__":
 
 
 
-# This is only used once to write the CLC masks to disk. After that, it shouldnt be used again.
-def get_clc_mask(metadata):
-    
-    import rasterio
-    from rasterio.mask import mask
-    from shapely.geometry import box, mapping
-    import geopandas as gpd
+    # This is only used once to write the CLC masks to disk. After that, it shouldnt be used again.
+    def get_clc_mask(metadata):
+        
+        import rasterio
+        from rasterio.mask import mask
+        from shapely.geometry import box, mapping
+        import geopandas as gpd
 
-    def extract_clc_patch(clc_path, image_patch_path, output_path):
-        with rasterio.open(image_patch_path) as src_img:
-            bounds = src_img.bounds
-            img_crs = src_img.crs
-            geom = box(*bounds)
-            gdf = gpd.GeoDataFrame({'geometry': [geom]}, crs=img_crs)
+        def extract_clc_patch(clc_path, image_patch_path, output_path):
+            with rasterio.open(image_patch_path) as src_img:
+                bounds = src_img.bounds
+                img_crs = src_img.crs
+                geom = box(*bounds)
+                gdf = gpd.GeoDataFrame({'geometry': [geom]}, crs=img_crs)
 
-        with rasterio.open(clc_path) as src_clc:
-            clc_crs = src_clc.crs
-            if clc_crs != gdf.crs:
-                gdf = gdf.to_crs(clc_crs)
+            with rasterio.open(clc_path) as src_clc:
+                clc_crs = src_clc.crs
+                if clc_crs != gdf.crs:
+                    gdf = gdf.to_crs(clc_crs)
 
-            try:
-                out_image, out_transform = mask(
-                    dataset=src_clc,
-                    shapes=gdf.geometry.map(mapping),
-                    crop=True
-                )
-            except ValueError as e:
-                if "do not overlap" in str(e):
-                    print(f"Skipped {image_patch_path} — no overlap with CLC.")
-                    return None
-                else:
-                    raise
+                try:
+                    out_image, out_transform = mask(
+                        dataset=src_clc,
+                        shapes=gdf.geometry.map(mapping),
+                        crop=True
+                    )
+                except ValueError as e:
+                    if "do not overlap" in str(e):
+                        print(f"Skipped {image_patch_path} — no overlap with CLC.")
+                        return None
+                    else:
+                        raise
+            # Original size
+            _, orig_h, orig_w = out_image.shape
+
+            # Compute zoom factors
+            zoom_y = 256 / out_image.shape[1]
+            zoom_x = 256 / out_image.shape[2]
+
+            # Use nearest-neighbor zoom for class labels
+            out_resized = zoom(out_image, (1, zoom_y, zoom_x), order=0)
+
+            # Adjust transform accordingly
+            out_transform = out_transform * rasterio.Affine.scale(1 / zoom_x, 1 / zoom_y)
 
             out_meta = src_clc.meta.copy()
             out_meta.update({
-                "height": out_image.shape[1],
-                "width": out_image.shape[2],
-                "transform": out_transform
+                "height": 256,
+                "width": 256,
+                "transform": out_transform,
+                "dtype": out_image.dtype.name,
+                "count": 1
             })
 
-        with rasterio.open(output_path, "w", **out_meta) as dest:
-            dest.write(out_image)
-        
-        return output_path
+            with rasterio.open(output_path, "w", **out_meta) as dest:
+                dest.write(out_resized)
+                
             
-    #metadata = pd.read_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
-    clc_path = "/data2/simon/s100k/clc_4326.tif"
-    metadata["clc_path"] = None  # Initialize the column
+                
+        #metadata = pd.read_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
+        clc_path = "/data2/simon/s100k/clc_4326.tif"
+        metadata["clc_path"] = None  # Initialize the column
+        md_ls = []
 
-    for idx, row in tqdm(metadata.iterrows(),total=len(metadata)):
-        image_path = row["image_path"]
-        image_continent = row["continent"]
-        if image_continent != "Europe":
-            continue
+        for idx, row in tqdm(metadata.iterrows(),total=len(metadata)):
+            image_path = row["image_path"]
+            if str(row["continent"]).strip() != "Europe":
+                md_ls.append(None)
+                continue
+            
+            # construct out_path
+            out_base = "/data2/simon/s100k/clc_patches/"
+            out_path = os.path.join(out_base,os.path.basename(image_path))
+
+            extract_clc_patch(clc_path, image_path, out_path)
+            
+            #metadata.at[idx, "clc_path"] = out_path
+            md_ls.append(out_path)
+        metadata["clc_path"] = md_ls
         
-        # construct out_path
-        out_base = "/data2/simon/s100k/clc_patches/"
-        out_path = os.path.join(out_base,os.path.basename(image_path))
-
-        extract_clc_patch(clc_path, image_path, out_path)
-        
-        metadata.at[idx, "clc_path"] = out_path
-        
-    metadata.to_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
-    return metadata
+        metadata.to_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
+        return metadata
 
 
 
+    md = pd.read_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
+    #md = ds.metadata.copy()
+    # Add continent column from spatial join with geojson
+    import geopandas as gpd
+    #md = gpd.GeoDataFrame(md, geometry=gpd.points_from_xy(md.coords_x, md.coords_y), crs="EPSG:4326")
+    #continents = gpd.read_file(ds.config.Data.S2_100k_settings.continent_geojson, driver="GeoJSON")
+    #print("Performing Spatial Join with continents...")
+    #md = gpd.sjoin(md, continents, how="left")
+    # remove index_right column
+    md = md.drop(columns=["clc_path"])
+    # rename continent column
+    #md = md.rename(columns={"CONTINENT": "continent"})
+    #md = md.loc[:, ~md.columns.duplicated()]
+    md = get_clc_mask(md)
 
 
-md = ds.metadata.copy()
-# Add continent column from spatial join with geojson
-import geopandas as gpd
-md = gpd.GeoDataFrame(md, geometry=gpd.points_from_xy(md.coords_x, md.coords_y), crs="EPSG:4326")
-continents = gpd.read_file(ds.config.Data.S2_100k_settings.continent_geojson, driver="GeoJSON")
-print("Performing Spatial Join with continents...")
-md = gpd.sjoin(md, continents, how="left")
-# remove index_right column
-md = md.drop(columns=["index_right"])
-# rename continent column
-md = md.rename(columns={"CONTINENT": "continent"})
 
 
-md = get_clc_mask(md)
 
+# plot rgb and clc
+import matplotlib.pyplot as plt
+def plot_rgb_and_mask(rgb_tensor, mask_tensor,it=0, title=None):
+    from matplotlib.colors import ListedColormap
+    import matplotlib.pyplot as plt
+    """
+    rgb_tensor: [3, H, W] torch tensor, assumed in [0, 1]
+    mask_tensor: [H, W] torch tensor, integer class mask
+    """
+    rgb_np = rgb_tensor.permute(1, 2, 0).cpu().numpy()
+    mask_np = mask_tensor.cpu().numpy()
+    
+    cmap = ListedColormap([
+        "#ffffff",  # 0: white (background / no class)
+        "#90ee90",  # 1: light green (Agricultural)
+        "#006400",  # 2: dark green (Natural Vegetation)
+        "#1e90ff",  # 3: blue (Water)
+        "#ff0000"   # 4: red (Artificial surfaces)
+    ])
+
+    plt.figure(figsize=(10, 5))
+
+    plt.subplot(1, 2, 1)
+    plt.imshow(rgb_np*5)
+    plt.title("RGB Image")
+    plt.axis("off")
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(mask_np, cmap=cmap, vmin=0, vmax=4)
+    plt.title("CLC Mask")
+    plt.axis("off")
+
+    plt.savefig(f"/data1/simon/GitHub/NIR_GAN/images/clc_masks/clc_mask_{it}.png", dpi=300)
+    
+for i in range(100):
+    b = ds.__getitem__(i)
+    plot_rgb_and_mask(b["rgb"],b["clc_mask"],it=i,title="RGB and CLC Mask")

@@ -58,7 +58,7 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
     rgb,nir,coords = batch["rgb"],batch["nir"],batch["coords"],
     pred = model.predict_step(rgb,coords)
     
-        # Assume you also have: batch["clc_mask"] with shape [B, H, W]
+    # Assume you also have: batch["clc_mask"] with shape [B, H, W]
     clc_mask = batch["clc_mask"]
 
     for i in range(rgb.shape[0]):  # iterate over batch
@@ -71,7 +71,9 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
             mask = (region_mask == region_id)
 
             if np.count_nonzero(mask) < 10:
-                continue  # Skip small regions
+                continue  # Skip very small regions
+            if region_id == 0: # skip unknown background
+                continue
 
             # Extract region patches
             t_patch = true_nir[mask]

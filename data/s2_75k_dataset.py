@@ -13,9 +13,14 @@ import geopandas as gpd
 from shapely.geometry import box
 from shapely.geometry import Point
 from tqdm import tqdm
+from scipy.ndimage import zoom
+from rasterio.windows import Window
+
+
+
 
 class S2_75k(Dataset):
-    def __init__(self, config, phase="train"):
+    def __init__(self, config, phase="train", force_rebuild=False):
         """
         Args:
             root_dir (string): Directory with all the images.
@@ -47,7 +52,17 @@ class S2_75k(Dataset):
 
         # Create Dataframe and get metadata information
         self.image_df = df.sample(frac=1).reset_index(drop=True)  # Shuffle after split
-        self.build_metadata()
+        
+        # if file exists
+        metadata_file_path = config.Data.S2_75k_settings.base_path,"metadata.pkl"
+        if os.path.exists(metadata_file_path) and force_rebuild==False:
+            print("Loading metadata from file...")
+            self.image_df = pd.read_pickle(metadata_file_path)
+        else:
+            print("No metadata file found, creating new metadata...")
+            self.build_metadata()
+            self.image_df = self.create_clc_mask(self.image_df)
+            self.image_df.to_pickle(metadata_file_path)
         
         # keep only europe if CLC mask is enabled
         if self.config.Data.S2_75k_settings.return_clc_mask:
@@ -102,6 +117,112 @@ class S2_75k(Dataset):
     def __len__(self):
         return len(self.image_df)
     
+    def create_clc_mask(self,metadata,image_size=1024):
+        
+        import rasterio
+        from rasterio.mask import mask
+        from shapely.geometry import box, mapping
+        import geopandas as gpd
+
+        def extract_clc_patch(clc_path, image_patch_path, output_path):
+            with rasterio.open(image_patch_path) as src_img:
+                bounds = src_img.bounds
+                img_crs = src_img.crs
+                geom = box(*bounds)
+                gdf = gpd.GeoDataFrame({'geometry': [geom]}, crs=img_crs)
+
+            with rasterio.open(clc_path) as src_clc:
+                clc_crs = src_clc.crs
+                if clc_crs != gdf.crs:
+                    gdf = gdf.to_crs(clc_crs)
+
+                try:
+                    out_image, out_transform = mask(
+                        dataset=src_clc,
+                        shapes=gdf.geometry.map(mapping),
+                        crop=True
+                    )
+                except ValueError as e:
+                    if "do not overlap" in str(e):
+                        #print(f"Skipped {image_patch_path} — no overlap with CLC.")
+                        return None
+                    else:
+                        raise
+            # Original size
+            _, orig_h, orig_w = out_image.shape
+
+            # Compute zoom factors
+            zoom_y = image_size / out_image.shape[1]
+            zoom_x = image_size / out_image.shape[2]
+
+            # Use nearest-neighbor zoom for class labels
+            out_resized = zoom(out_image, (1, zoom_y, zoom_x), order=0)
+
+            # Adjust transform accordingly
+            out_transform = out_transform * rasterio.Affine.scale(1 / zoom_x, 1 / zoom_y)
+
+            out_meta = src_clc.meta.copy()
+            out_meta.update({
+                "height": image_size,
+                "width": image_size,
+                "transform": out_transform,
+                "dtype": out_image.dtype.name,
+                "count": 1
+            })
+
+            with rasterio.open(output_path, "w", **out_meta) as dest:
+                dest.write(out_resized)
+                
+            
+                
+        #metadata = pd.read_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
+        clc_path = "/data2/simon/s100k/clc_4326.tif"
+        metadata["clc_path"] = None  # Initialize the column
+        md_ls = []
+
+        for idx, row in tqdm(metadata.iterrows(),total=len(metadata), desc="Extracting CLC patches..."):
+            image_path = row["image_path"]
+            if str(row["continent"]).strip() != "Europe":
+                md_ls.append(None)
+                continue
+            
+            # construct out_path
+            out_base = "/data2/simon/nirgan_s2/clc_masks"
+            out_path = os.path.join(out_base,os.path.basename(image_path))
+
+            extract_clc_patch(clc_path, image_path, out_path)
+            
+            #metadata.at[idx, "clc_path"] = out_path
+            md_ls.append(out_path)
+        metadata["clc_path"] = md_ls
+        
+        return metadata
+    
+    def get_clc_mask(self, clc_path, x, y, size=256):
+        # get CLC mask for image
+        with rasterio.open(clc_path) as src:
+            window = Window(x, y, size, size)
+            clc_mask = src.read(1, window=window)
+            clc_mask = torch.from_numpy(clc_mask).float()
+            
+        # unify mapping to classes
+        df = pd.read_csv(self.config.Data.S2_100k_settings.clc_mapping_file)
+        clc_mask = clc_mask.numpy()
+        # for GRID_CODE in csv, get GROUP_ID and assign new value in numpy array
+        mapping = dict(zip(df["GRID_CODE"], df["GROUP_ID"]))
+        mapping = {
+                int(k): int(v)
+                for k, v in mapping.items()
+                if pd.notna(k) and pd.notna(v) and isinstance(k, (int, float)) and float(k).is_integer()
+            }
+
+        # Remap using numpy vectorized function
+        clc_remapped = np.vectorize(lambda x: mapping.get(x, 0))(clc_mask)
+        clc_remapped = np.nan_to_num(clc_remapped, nan=0).astype(np.uint8)  # Optional: fill unmapped with 0
+        clc_mask = torch.from_numpy(clc_remapped)
+        
+        return clc_mask
+    
     def __getitem__(self, idx):
         
         try:
@@ -152,7 +273,9 @@ class S2_75k(Dataset):
         if self.config.Data.S2_75k_settings.return_coords:
             batch["coords"] = coords
         if self.config.Data.S2_75k_settings.return_clc_mask:
-            pass
+            im_path =  self.image_df.loc[idx, "clc_path"]
+            clc_mask = self.get_clc_mask(im_path, x, y, size=self.patch_size)
+            batch["clc_mask"] = clc_mask
 
         return(batch)
                 
