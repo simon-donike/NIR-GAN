@@ -28,7 +28,7 @@ base_configs:
   use_training_pred_optimization: False
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 0.5 # RS indices vs all others - untested
+  lambda_rs_losses: 0.0 # RS indices vs all others - untested
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
     lambda_ndvi: 0.3333
@@ -56,10 +56,10 @@ custom_configs:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
     load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
+    weights_path: "logs/exp_NIR_GAN/2025-05-08_14-20-39/last.ckpt" # S75K all training  #"logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [2,3]
+    devices: [0,1,2,3]
     strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
@@ -77,7 +77,7 @@ Data:
   normalize: False # TODO: removed this option
   
   # Dataloader Settings
-  train_batch_size: 48
+  train_batch_size: 16
   val_batch_size: 5
   num_workers: 16
   prefetch_factor: 2
@@ -88,7 +88,7 @@ Data:
   padding_amount: 5
 
   # Detailed Dataset Setttings
-  dataset_type: 'S2NAIP' # ['S2NAIP', 'S2_rand', 'mixed','S2_100k','worldstrat']
+  dataset_type: 'S2_75k' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k','worldstrat']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   # Individual Dataset settings
   sen2naip_settings:
@@ -101,11 +101,13 @@ Data:
     base_path: "/data3/val_s2_tiles/"
     return_coords: True
     no_images: 1000
-  S2_75k:
+  S2_75k_settings:
     image_size: 256
     base_path: "/data2/simon/nirgan_s2/"
     continent_geojson: "/data2/simon/s100k/continents.geojson"
-    return_clc_mask: True
+    return_clc_mask: False
+    clc_file_path: "/data2/simon/s100k/clc_4326.tif"
+    clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
     return_coords: True
   S2_100k:
     image_size: 256

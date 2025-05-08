@@ -1,3 +1,9 @@
+
+validation_utils
+validation_utils/
+calidation_utils/*
+
+
 # General Files
 *.pkl
 

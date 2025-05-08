@@ -17,8 +17,6 @@ from scipy.ndimage import zoom
 from rasterio.windows import Window
 
 
-
-
 class S2_75k(Dataset):
     def __init__(self, config, phase="train", force_rebuild=False):
         """
@@ -33,42 +31,49 @@ class S2_75k(Dataset):
         self.phase=phase
         
         # read all files in directory
-        self.image_paths = []
-        for dirpath, _, filenames in os.walk(self.root_dir):
-            for filename in filenames:
-                # assert file is tiff
-                if filename.endswith(".tif"):
-                    self.image_paths.append(os.path.join(dirpath, filename))
+        # Read only .tif files in the top-level directory
+        self.image_paths = [
+            os.path.join(self.root_dir, f)
+            for f in os.listdir(self.root_dir)
+            if f.endswith(".tif") and os.path.isfile(os.path.join(self.root_dir, f))
+        ]
         assert len(self.image_paths) > 0, "No images found in the directory"
+        #print("Found {} images in the directory".format(len(self.image_paths)))
         
         # Create DataFrame
         df = pd.DataFrame(self.image_paths, columns=["image_path"])
-
-        # Rabdom shuffle after split
-        if self.phase == "train":
-            df = df.iloc[:-100]
-        elif self.phase == "val":
-            df = df.iloc[-100:]
 
         # Create Dataframe and get metadata information
         self.image_df = df.sample(frac=1).reset_index(drop=True)  # Shuffle after split
         
         # if file exists
-        metadata_file_path = config.Data.S2_75k_settings.base_path,"metadata.pkl"
+        metadata_file_path = os.path.join(config.Data.S2_75k_settings.base_path,"metadata.pkl")
         if os.path.exists(metadata_file_path) and force_rebuild==False:
             print("Loading metadata from file...")
             self.image_df = pd.read_pickle(metadata_file_path)
         else:
             print("No metadata file found, creating new metadata...")
-            self.build_metadata()
+            self.build_metadata(force_rebuild=True)
             self.image_df = self.create_clc_mask(self.image_df)
             self.image_df.to_pickle(metadata_file_path)
         
         # keep only europe if CLC mask is enabled
         if self.config.Data.S2_75k_settings.return_clc_mask:
-            print("Filtering to only include Europe...")
-            self.image_df["continent"] = self.image_df["continent"].astype(str).str.strip()
-            self.image_df = self.image_df[self.image_df["continent"]=="Europe"]
+            print("Filtering to only include patches with CLC masks available...")
+            self.image_df = self.image_df[self.image_df["clc_path"].apply(lambda x: isinstance(x, (str, os.PathLike)))] # keep only valid path names
+            self.image_df = self.image_df[self.image_df["clc_path"].apply(lambda x: os.path.exists(x))] # if path actually exists
+        
+        # Random shuffle for split
+        if self.phase == "train":
+            self.image_df = self.image_df.iloc[:-200]
+        elif self.phase == "val":
+            self.image_df = self.image_df.iloc[-100:]
+        elif self.phase == "test":
+            self.image_df = self.image_df.iloc[-200:-100]
+        else:
+            raise ValueError("Invalid phase. Choose 'train' or 'val'.")
+        self.image_df = self.image_df.reset_index(drop=True) # reset index for iloc operations later
+
         print(f"Instantiated S2_75k dataset with {len(self.image_df)} datapoints for phase: {self.phase}")
                     
         # set padding settings
@@ -78,11 +83,10 @@ class S2_75k(Dataset):
     def build_metadata(self,force_rebuild=False):
         # check weather metadata pkl exists
         metadata_file = os.path.join(self.root_dir, "metadata.pkl")
-        if os.path.exists(metadata_file) and not force_rebuild:
+        if os.path.exists(metadata_file) and force_rebuild == False:
             print("Loading metadata from file...")
             self.image_df = pd.read_pickle(metadata_file)
         else:
-            print("No metadata file found, creating new metadata...")
         
             continents_file = self.config.Data.S2_75k_settings.continent_geojson
             continents = gpd.read_file(continents_file)
@@ -148,6 +152,8 @@ class S2_75k(Dataset):
                         return None
                     else:
                         raise
+            #print("Extracted CLC Mask mean:", out_image.mean())
+            
             # Original size
             _, orig_h, orig_w = out_image.shape
 
@@ -172,11 +178,11 @@ class S2_75k(Dataset):
 
             with rasterio.open(output_path, "w", **out_meta) as dest:
                 dest.write(out_resized)
+            return True
                 
             
                 
-        #metadata = pd.read_pickle(os.path.join(config.Data.S2_100k_settings.base_path,"metadata.pkl"))
-        clc_path = "/data2/simon/s100k/clc_4326.tif"
+        clc_path = self.config.Data.S2_75k_settings.clc_file_path #"/data2/simon/s100k/clc_4326.tif"
         metadata["clc_path"] = None  # Initialize the column
         md_ls = []
 
@@ -190,10 +196,13 @@ class S2_75k(Dataset):
             out_base = "/data2/simon/nirgan_s2/clc_masks"
             out_path = os.path.join(out_base,os.path.basename(image_path))
 
-            extract_clc_patch(clc_path, image_path, out_path)
+            return_state = extract_clc_patch(clc_path, image_path, out_path)
+            if return_state == True:
+                md_ls.append(out_path)
+            else:
+                md_ls.append(None)
+                continue                
             
-            #metadata.at[idx, "clc_path"] = out_path
-            md_ls.append(out_path)
         metadata["clc_path"] = md_ls
         
         return metadata
@@ -204,10 +213,12 @@ class S2_75k(Dataset):
             window = Window(x, y, size, size)
             clc_mask = src.read(1, window=window)
             clc_mask = torch.from_numpy(clc_mask).float()
-            
+                        
         # unify mapping to classes
-        df = pd.read_csv(self.config.Data.S2_100k_settings.clc_mapping_file)
+        df = pd.read_csv(self.config.Data.S2_75k_settings.clc_mapping_file)
         clc_mask = clc_mask.numpy()
+        clc_mask[clc_mask == 128] = 0 # remap No Data Value to 0
+
         # for GRID_CODE in csv, get GROUP_ID and assign new value in numpy array
         mapping = dict(zip(df["GRID_CODE"], df["GROUP_ID"]))
         mapping = {
@@ -273,8 +284,8 @@ class S2_75k(Dataset):
         if self.config.Data.S2_75k_settings.return_coords:
             batch["coords"] = coords
         if self.config.Data.S2_75k_settings.return_clc_mask:
-            im_path =  self.image_df.loc[idx, "clc_path"]
-            clc_mask = self.get_clc_mask(im_path, x, y, size=self.patch_size)
+            clc_path =  self.image_df.loc[idx, "clc_path"]
+            clc_mask = self.get_clc_mask(clc_path, x, y, size=self.patch_size)
             batch["clc_mask"] = clc_mask
 
         return(batch)
@@ -301,14 +312,17 @@ class S2_75k_datamodule(pl.LightningDataModule):
 
 
 if __name__=="__main__":
-    config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
-    ds = S2_75k(config)
+    config = OmegaConf.load("configs/config_px2px.yaml")
+    ds = S2_75k(config,force_rebuild=False)
+    dm = S2_75k_datamodule(config)
+    batch = ds.__getitem__(1)
     
-    #m = ds.build_metadata()
-    #dm = S2_75k_datamodule(config)
-    #batch = next(iter(dm.train_dataloader()))
-    #coords = batch["coords"]
-
+    from utils.plot_clc_utils import plot_rgb_and_mask
+    for i in tqdm(range(25),desc="Plotting samples..."):
+        batch = ds.__getitem__(i)
+        plot_rgb_and_mask(batch["rgb"],batch["clc_mask"],it=i)
+    batch = ds.__getitem__(1)
+    batch["clc_mask"]
     """
     from tqdm import tqdm
     for i in tqdm(dm.train_dataloader()):

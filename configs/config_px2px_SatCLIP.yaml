@@ -130,11 +130,14 @@ Data:
     base_path: "/data2/simon/nirgan_s2/"
     continent_geojson: "/data2/simon/s100k/continents.geojson"
     return_clc_mask: True
+    clc_file_path: "/data2/simon/s100k/clc_4326.tif"
+    clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
     return_coords: True
   S2_100k_settings:
     image_size: 256
     base_path: "/data2/simon/s100k/images/"
     continent_geojson: "/data2/simon/s100k/continents.geojson"
+    clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
     return_clc_mask: True
     return_coords: True
   worldstrat_settings:

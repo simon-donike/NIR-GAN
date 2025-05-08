@@ -316,7 +316,10 @@ class Px2Px_PL(pl.LightningModule):
             print("Error in saving config to experiment path: ",e)
 
         # Run Validation Epoch with dataet metrics saving
-        save_val_df = self.config.custom_configs.experimentation.save_val_df
+        try:
+            save_val_df = self.config.custom_configs.experimentation.save_val_df
+        except Exception as e:
+            save_val_df = False
         if save_val_df:
             try:
                 if self.current_epoch>=1:
@@ -334,7 +337,8 @@ class Px2Px_PL(pl.LightningModule):
         # Time Series Logging
         if self.logger and hasattr(self.logger, 'experiment'):
             # if epoch is a multiple of 10, log time series
-            if self.current_epoch % self.config.custom_configs.Logging.time_series_frequency_epochs == 0:
+            log_time_series = False
+            if self.current_epoch % self.config.custom_configs.Logging.time_series_frequency_epochs == 0 and log_time_series == True:
 
                 pil_image_texas_cropcircles = calculate_and_plot_timeline(model = self,
                                                         device=self.device,
