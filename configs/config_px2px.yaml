@@ -84,8 +84,8 @@ Data:
   persistent_workers: True
 
   # Padding for removal of edge artifacts
-  padding: False
-  padding_amount: 5
+  padding: True
+  padding_amount: 10
 
   # Detailed Dataset Setttings
   dataset_type: 'S2_75k' # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k','worldstrat']
@@ -102,7 +102,7 @@ Data:
     return_coords: True
     no_images: 1000
   S2_75k_settings:
-    image_size: 256
+    image_size: 512
     base_path: "/data2/simon/nirgan_s2/"
     continent_geojson: "/data2/simon/s100k/continents.geojson"
     return_clc_mask: False

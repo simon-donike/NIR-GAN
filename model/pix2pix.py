@@ -86,17 +86,28 @@ class Px2Px_PL(pl.LightningModule):
             self.satclip = False
 
         
-    def forward(self, input,embeds=None):
-        if self.satclip==False:
+    def forward(self, input,embeds=None,use_padding=True):
+        
+        # apply padding if wanted
+        if self.config.Data.padding:
+            pad_amount = self.config.Data.padding_amount
+            input = torch.nn.functional.pad(input, pad=(pad_amount, pad_amount, pad_amount, pad_amount), mode='reflect')
+
+        # select embedding styles
+        if not self.satclip:
             pred = self.netG(input)
-        else: #self.satclip==True:
-            if self.config.satclip.satclip_style=="concat":
+        else:
+            if self.config.satclip.satclip_style == "concat":
                 pred = self.netG(input)
-            elif self.config.satclip.satclip_style=="inject":
-                # TODO: Fix this for multiplication injection
-                pred = self.netG(input,embeds)
+            elif self.config.satclip.satclip_style == "inject":
+                pred = self.netG(input, embeds)
             else:
                 raise NotImplementedError("SatClip Style not recognized")
+
+        # remove padding again if it's enabled
+        if self.config.Data.padding:
+            pred = pred[..., pad_amount:-pad_amount, pad_amount:-pad_amount]
+
         return pred
     
     def on_train_batch_start(self, batch, batch_idx):

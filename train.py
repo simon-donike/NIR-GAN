@@ -121,7 +121,7 @@ if __name__ == '__main__':
                     #check_val_every_n_epoch= 10, # config.custom_configs.Logging.check_val_every_n_epoch,
                     #val_check_interval=50,
                     limit_val_batches=5,
-                    max_steps=30000,
+                    max_steps=200_000,
                     #max_epochs=20,
                     resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 

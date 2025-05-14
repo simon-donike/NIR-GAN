@@ -71,7 +71,7 @@ custom_configs:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
     load_weights_only: True # Load ckpt file only
-    weights_path: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
+    weights_path: "logs/exp_NIR_GAN/2025-03-04_18-24-07_S100k/epoch=197-step=556948.ckpt" # S75k CKPT: "logs/exp_NIR_GAN_SatCLIP/2025-03-07_14-52-31_SatCLIP_best/epoch=196-step=621600.ckpt"
   Training:
     accelerator: "cuda"
     devices: [2,3]
@@ -104,7 +104,7 @@ Data:
   persistent_workers: True
 
   # Padding for removal of edge artifacts
-  padding: False
+  padding: True
   padding_amount: 10
 
   # Detailed Dataset Setttings

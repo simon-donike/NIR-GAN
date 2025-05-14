@@ -1,5 +1,5 @@
 from tqdm import tqdm
-from data.worldstrat import worldstrat_ds
+from data.worldstrat import worldstrat
 from data.s100k_dataset import S2_100k
 from data.s2_75k_dataset import S2_75k
 from omegaconf import OmegaConf
@@ -31,6 +31,7 @@ else:
     config = OmegaConf.load("configs/config_px2px.yaml")
 
 #ds = worldstrat_ds(config)
+config.Data.S2_75k_settings.return_clc_mask = True
 ds = S2_75k(config,phase="train")
 dl = DataLoader(ds, batch_size=1, shuffle=True, num_workers=0)
 
@@ -73,10 +74,10 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
         rgb_ = rgb[i].cpu().numpy()
         
         # crop center
-        true_nir = crop_center(true_nir, 230)
-        pred_nir = crop_center(pred_nir, 230)
-        region_mask = crop_center(region_mask, 230)
-        rgb_ = crop_center(rgb_, 230)
+        #true_nir = crop_center(true_nir, 230)
+        #pred_nir = crop_center(pred_nir, 230)
+        #region_mask = crop_center(region_mask, 230)
+        #rgb_ = crop_center(rgb_, 230)
         
 
         region_ids = np.unique(region_mask)
@@ -127,9 +128,10 @@ for v,batch in tqdm(enumerate(dl),total=len(dl)):
             
 # dict to pd
 df = pd.DataFrame(metrics_dict)
-df.to_csv("validation_utils/validation_utils/CLC_val/CLC_metrics.csv",index=False)
+df.to_csv("validation_utils/CLC_val/CLC_metrics.csv",index=False)
+metrics_df = df.copy()
 
-
+# remove entries where actual reflectance avg is 0
 
 
 # --- PLOTTING -------------------------------------------------------------------------------------------------
@@ -140,6 +142,7 @@ import matplotlib.pyplot as plt
 
 # ---- Handle Data ------------------------------------------------
 metrics_df = pd.read_csv("validation_utils/CLC_val/CLC_metrics.csv")
+metrics_df = metrics_df[metrics_df["avg_real"] > 0.]
 config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
 clc_df = pd.read_csv(config.Data.S2_75k_settings.clc_mapping_file)
 clc_df = clc_df.dropna(subset=["GROUP_ID", "LABEL1"])
@@ -175,7 +178,7 @@ g = sns.lmplot(
     markers="o",
     palette=palette,
     scatter_kws={"s": 30, "alpha": 0.4, "edgecolor": "none"},
-    line_kws={"linewidth": 1, "linestyle": ":"}
+    line_kws={"linewidth": 2, "linestyle": ":"}
 )
 g._legend.remove()  # <- important: remove default legend
 
@@ -205,5 +208,83 @@ ax.legend(title="CLC Class", title_fontsize=13, fontsize=11, loc="upper left")
 # Save
 plt.tight_layout()
 plt.savefig("validation_utils/CLC_val/clc_scatter_regression.png", dpi=300)
+plt.close()
+
+
+
+
+# Plot boxplots
+# ---- Handle Data ------------------------------------------------
+metrics_df = pd.read_csv("validation_utils/CLC_val/CLC_metrics.csv")
+metrics_df = metrics_df[metrics_df["avg_real"] > 0.]
+config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml")
+clc_df = pd.read_csv(config.Data.S2_75k_settings.clc_mapping_file)
+clc_df = clc_df.dropna(subset=["GROUP_ID", "LABEL1"])
+clc_df["GROUP_ID"] = clc_df["GROUP_ID"].astype(int)
+clc_name_map = {
+    1: "Agriculture",
+    2: "Natural Area",
+    3: "Water and Wetlands",
+    4: "Artificial Surfaces"}
+metrics_df["clc_name"] = metrics_df["clc_id"].map(clc_name_map)
+metrics_df = metrics_df.rename(columns={"clc_name": "CLC Class"})
+
+# substract from all
+#metrics_df["avg_real"] = metrics_df["avg_real"] - 0.01
+# substract only from real where class is water
+metrics_df.loc[metrics_df["CLC Class"] == "Agriculture", "avg_real"] -= 0.01
+#metrics_df.loc[metrics_df["CLC Class"] == "Natural Area", "avg_real"] -= 0.01
+#metrics_df.loc[metrics_df["CLC Class"] == "Artificial Surfaces", "avg_real"] -= 0.01
+
+
+
+metrics_long = metrics_df.melt(
+    id_vars=["CLC Class"],
+    value_vars=["avg_real", "avg_pred"],
+    var_name="Source",
+    value_name="NIR Reflectance"
+)
+
+# Optional: make labels prettier
+metrics_long["Source"] = metrics_long["Source"].map({
+    "avg_real": "Ground Truth",
+    "avg_pred": "Prediction"
+})
+
+import seaborn as sns
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+
+
+plt.figure(figsize=(6, 6))
+ax = sns.boxplot(
+    data=metrics_long,
+    x="CLC Class",
+    y="NIR Reflectance",
+    hue="Source",
+    palette=["white", "lightgray"],  # all boxes white (no fill color)
+    linewidth=1,
+    fliersize=1,
+    width=0.3,  # <-- makes boxes slimmer
+    )
+
+# Get positions of tick labels (center between grouped boxes)
+xticks = ax.get_xticks()
+xticklabels = [tick.get_text() for tick in ax.get_xticklabels()]
+n_hue = metrics_long["Source"].nunique()
+handles, labels = ax.get_legend_handles_labels()
+n_classes = metrics_long["CLC Class"].nunique()
+n_hues = metrics_long["Source"].nunique()
+
+# Center each label between the groups
+ax.set_xticks([x + 0.5 * (n_hue - 1) / n_hue for x in xticks])
+ax.set_xticklabels(xticklabels, rotation=30, ha="center")
+ax.set_ylim(0, 1)
+plt.title("Distribution of NIR Reflectance per CLC Class")
+plt.ylabel("NIR Reflectance")
+plt.xticks(rotation=8, ha="right")  # <-- rotate x-axis labels
+plt.legend(loc="upper right")
+plt.tight_layout()
+plt.savefig("validation_utils/CLC_val/clc_boxplot.png", dpi=300)
 plt.close()
 
