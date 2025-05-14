@@ -29,7 +29,9 @@ class S2_100k(Dataset):
         
         # do assertions before starting to build dataset
         assert phase in ["train","val","test"], "Phase must be one of 'train','val','test'"
-        assert self.patch_size == 256, "Only 512x512 patches are supported for Sentinel-2 100k dataset."
+        
+        if self.patch_size != 256:
+            print("Only 256x256 patches are supported for Sentinel-2 100k dataset. Interpolating to desired size...")
 
         # chech if dataframe exists
         if  os.path.exists(os.path.join(self.root_dir,"metadata.pkl")):
@@ -59,8 +61,8 @@ class S2_100k(Dataset):
             self.metadata = self.metadata[self.metadata["continent"]=="Europe"]
             
         # set padding settings
-        if self.config.Data.padding:
-            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+        #if self.config.Data.padding:
+        #    self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
 
         print(f"Instanciated S2_100k dataset with {len(self.metadata)} datapoints for phase: {self.phase}")
 
@@ -216,9 +218,18 @@ class S2_100k(Dataset):
         patch = torch.clamp(patch, 0, 1)
         rgb = patch[:3,:,:]
         nir = patch[3:,:,:]
-        if self.config.Data.padding:
-            rgb = self.pad(rgb)
-            nir = self.pad(nir)
+        #if self.config.Data.padding:
+        #    rgb = self.pad(rgb)
+        #    nir = self.pad(nir)
+        
+        if self.patch_size != 256:
+            # Interpolate to desired size
+            rgb = torch.nn.functional.interpolate(rgb.unsqueeze(0), size=(self.patch_size, self.patch_size), mode='bilinear', align_corners=False)[0]
+            nir = torch.nn.functional.interpolate(nir.unsqueeze(0), size=(self.patch_size, self.patch_size), mode='bilinear', align_corners=False)[0]
+            if self.config.Data.S2_100k_settings.return_clc_mask:
+                clc_mask = torch.nn.functional.interpolate(clc_mask.unsqueeze(0).unsqueeze(0), size=(self.patch_size, self.patch_size), mode='nearest')[0][0]
+            else:
+                pass
             
         # extract RGB and NIR bands
         batch = {"rgb": rgb, "nir": nir}
@@ -227,6 +238,7 @@ class S2_100k(Dataset):
         if self.config.Data.S2_100k_settings.return_clc_mask:
             clc_mask = self.get_clc_mask(self.metadata.iloc[idx]["clc_path"])
             batch["clc_mask"] = clc_mask
+        
         
         return(batch)
                 
@@ -252,8 +264,8 @@ class S2_100k_datamodule(pl.LightningDataModule):
 
 
 if __name__=="__main__":
-    config = OmegaConf.load("configs/config_baselines.yaml")
-    ds = S2_100k(config,overwrite_metadata=True)
+    config = OmegaConf.load("configs/config_px2px.yaml")
+    ds = S2_100k(config,overwrite_metadata=False)
     b = ds.__getitem__(12)
     print(b["clc_mask"].shape)
     #dm = S2_100k_datamodule(config)

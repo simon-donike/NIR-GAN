@@ -39,11 +39,11 @@ class CombinedDataModule(LightningDataModule):
         for name in dataset_names:
             if name in DATASET_CLASSES:
                 module_name = DATASET_CLASSES[name]
-                print("importing ", module_name)
+                print("DATASET: importing ", module_name)
                 dataset_class = getattr(importlib.import_module(module_name), name)
                 datasets.append(dataset_class(self.config, phase=phase))
             else:
-                raise ValueError(f"Unknown dataset: {name}")
+                raise ValueError(f"Unknown dataset: {name} mot in {DATASET_CLASSES.keys()}")
         
         return ConcatDataset(datasets) if datasets else None
 

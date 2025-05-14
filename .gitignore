@@ -1,8 +1,8 @@
 
 validation_utils
 validation_utils/
-calidation_utils/*
-
+validation_utils/*
+predict_nir_dataset.py
 
 # General Files
 *.pkl

@@ -77,8 +77,8 @@ class S2_75k(Dataset):
         print(f"Instantiated S2_75k dataset with {len(self.image_df)} datapoints for phase: {self.phase}")
                     
         # set padding settings
-        if self.config.Data.padding:
-            self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
+        #if self.config.Data.padding:
+        #    self.pad = torch.nn.ReflectionPad2d(self.config.Data.padding_amount)
             
     def build_metadata(self,force_rebuild=False):
         # check weather metadata pkl exists
@@ -275,9 +275,9 @@ class S2_75k(Dataset):
         patch = torch.clamp(patch, 0, 1)
         rgb = patch[:3,:,:]
         nir = patch[3:,:,:]
-        if self.config.Data.padding:
-            rgb = self.pad(rgb)
-            nir = self.pad(nir)
+        #if self.config.Data.padding:
+        #    rgb = self.pad(rgb)
+        #    nir = self.pad(nir)
             
         # extract RGB and NIR bands
         batch = {"rgb": rgb, "nir": nir}
