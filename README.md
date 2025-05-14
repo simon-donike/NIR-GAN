@@ -1,9 +1,12 @@
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
+NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available. Highlights:
+- **sensor-agnostic**: trained to provide realistic NIR regardless of sensor
+- **multi-scale inputs**: trained on a variety of resolutions  
+- **Location Priors**: SatCLIP embeddings provide geographic context
+- **Application-specific Loss**: refined loss formulation including spectral indices improve spectral coherence  
+
 ![Sample Result](resources/banner.png)
 
-
-## Overview
-NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data in the S2 spectral domain is available.
 
 ## Use Case
 For example, in Super-Resolution datasets, high-resolution (HR) aerial imagery often serves as a reference for producing low-resolution (LR) images that mimic Sentinel-2 (S2) imagery. This process typically involves spectrally matching the HR aerial image to a corresponding S2 acquisition, followed by degradation to create the LR version.  
@@ -55,7 +58,7 @@ The project features an implementation of the Pix2Pix conditional GAN with appro
 
 ### SatCLIP Geographic Priors
 
-SatCLIP [1] is a way of encoding geographic information based on a lat-lon location. based on a large worldwide dataset, the embeddings are created to represent the unique conditions anywhere on earth and provide priors to models further down the processing pipeline. In the image below, the 1,256-dimensional spatial embedding is reprojected to a 3-dimensional RGB space via PCA. It is evident that the SatCLIP model encodes these geographical varieties into clusters correlated with vegetation and climatic zones, where regions with similar properties appear to have similar embeddings and vice versa. This is especially evident when comparing the distribution of rain forests (Brazil and West Africa) and deserts (Sahara, Australia, and Atacama) with the color similarities of the embeddings.
+SatCLIP [4] is a way of encoding geographic information based on a lat-lon location. based on a large worldwide dataset, the embeddings are created to represent the unique conditions anywhere on earth and provide priors to models further down the processing pipeline. In the image below, the 1,256-dimensional spatial embedding is reprojected to a 3-dimensional RGB space via PCA. It is evident that the SatCLIP model encodes these geographical varieties into clusters correlated with vegetation and climatic zones, where regions with similar properties appear to have similar embeddings and vice versa. This is especially evident when comparing the distribution of rain forests (Brazil and West Africa) and deserts (Sahara, Australia, and Atacama) with the color similarities of the embeddings.
 
 ![sc_ww](resources/SatCLIP_worldwide.png)
 
@@ -63,7 +66,7 @@ These SatCLIP embeddings are injected into the NIR-GAN model. The spatial prior 
 
 ![schema](resources/gan_inject.png)
 
-### Applicaiton-specific losses
+### Application-specific losses
 
 We combine standard reconstruction losses (L1 and Earth Mover’s Distance on histograms) with an application-specific loss to promote spectral accuracy. The application-specific loss computes the L1 difference between remote sensing indices (NDVI, NDWI, EVI) derived from both the predicted and ground truth NIR, effectively guiding the model to preserve physically meaningful spectral relationships across RGB and NIR bands. All losses are combined in a weighted total loss.
 
