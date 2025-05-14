@@ -1,12 +1,18 @@
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
 NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available. Highlights:
-- **sensor-agnostic**: trained to provide realistic NIR regardless of sensor
-- **multi-scale inputs**: trained on a variety of resolutions  
+- **Sensor-agnostic**: trained to provide realistic NIR regardless of sensor
+- **Multi-scale inputs**: trained on a variety of resolutions  
 - **Location Priors**: SatCLIP embeddings provide geographic context
 - **Application-specific Loss**: refined loss formulation including spectral indices improve spectral coherence  
 
 ![Sample Result](resources/banner.png)
 
+### Coming Soon
+- MLstack compliant model release for easy inference  
+- Paper publication
+
+
+## Project Objectives
 
 ## Use Case
 For example, in Super-Resolution datasets, high-resolution (HR) aerial imagery often serves as a reference for producing low-resolution (LR) images that mimic Sentinel-2 (S2) imagery. This process typically involves spectrally matching the HR aerial image to a corresponding S2 acquisition, followed by degradation to create the LR version.  
@@ -15,7 +21,7 @@ However, many aerial images, especially those available as open-source data, con
 
 In this scenario, synthesizing the NIR band from RGB bands is crucial. By using a GAN to predict the NIR band, this approach enables the generation of a synthetic NIR channel, enriching RGB-only datasets to approximate S2 capabilities and expanding their applications in environmental monitoring, agricultural assessments, and urban studies. This approach thus leverages RGB-only imagery to unlock additional spectral insights, bridging data gaps in multispectral analysis.  
 
-## Project Objectives
+## Verification Features
 
 **NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of multi-scale EI imagery.  
 ![nir_viz](resources/nir_viz.png)
@@ -24,9 +30,10 @@ In this scenario, synthesizing the NIR band from RGB bands is crucial. By using 
 ![ndvi_viz](resources/ndvi_viz.png)
 
 
-**Time-Series of NDVI development**: Track NDVI over crop cycles and sasonality.  
+**Time-Series of NDVI development**: Track NDVI over crop cycles and seasonality.  
 ![timeseries_tx](resources/timeseries_tx.png)
 
+# Model Information
 ## Training Data
 The model is trained using
 - a collection of worldwide-sampled Landsat-8 and Sentinel-2 images,
@@ -44,10 +51,7 @@ from which the RGB inputs and the corresponding NIR band have been extracted. Th
   
 - **Input Data**: RGB bands, used as input to the generator to synthesize the NIR band.
 - **Target Data**: NIR band, serves as the ground truth for training the model, allowing it to learn the mapping from RGB to NIR.  
-Note: The spectral range of most of the input data is in the domain of Sentinel-2 images.  
-
-### Output Data
-- **Synthetic NIR Images**: Generated NIR bands based solely on the input RGB bands, with Sentinel-2-like spectral charachteristics.
+- **Output Data: Synthetic NIR Images**: Generated NIR bands based solely on the input RGB bands, with Sentinel-2-like spectral charachteristics.
 
 ## Architecture
 The project features an implementation of the Pix2Pix conditional GAN with approximately 11 million parameters [3].  
@@ -81,14 +85,14 @@ git clone https://github.com/simon-donike/NIR_SRGAN.git
 cd NIR_SRGAN
 ```
 
-### To Come:
-- MLstack compliant model release for easy inference  
-- Paper publication
 
 ### Train on Custom Dataset
 To train on your own dataset, switch out the pytorch-lightning datamodule in the train.py script with your own. Your dataloader needs to return a dictionary with the following keys:
 - "rgb": Bx3xWxH RGB image tensor
-- "nir": Bx1xWxH NIR image tensor
+- "nir": Bx1xWxH NIR image tensor, then run
+```python
+python train.py --satclip y
+```
 
 Features:
 - Multi-GPU support
@@ -102,7 +106,7 @@ Features:
     - optimizer scheduler settings (patience, factor, etc)
     - etc.
 
-### Sources
+#### Sources
 [1] [SEN2NAIP](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP)  
 [2] [worldstrat](https://worldstrat.github.io/)  
 [3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
