@@ -1,12 +1,18 @@
+# data structures
 data/*
 !data/SR_dataset_RGB.py
 
-
+# validation experimentation nonsense
 validation_utils
 validation_utils/
 validation_utils/*
 predict_nir_dataset.py
 data/synthDataset/
+
+# local nonsense
+train_sweep.py
+validation_landcover.py
+validation.py
 
 # General Files
 *.pkl
@@ -31,8 +37,6 @@ images/
 *.csv
 playground/
 playground/*
-
-
 
 
 # Folders Automated
