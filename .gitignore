@@ -3,10 +3,11 @@ validation_utils
 validation_utils/
 validation_utils/*
 predict_nir_dataset.py
+data/synthDataset/
 
 # General Files
 *.pkl
-
+*.geojson
 *.tif 
 __pycache__/
 wandb/

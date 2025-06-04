@@ -56,7 +56,7 @@ custom_configs:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
     load_weights_only: True # Load ckpt file only
-    weights_path: "/data1/simon/GitHub/NIR_GAN/logs/exp_NIR_GAN/2025-05-14_16-10-16/last.ckpt" # S75K all training  #"logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
+    weights_path: "logs/exp_NIR_GAN/2025-05-14_10-25-06/last.ckpt" # S75K all training  #"logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
   Training:
     accelerator: "cuda"
     devices: [0,1,2]
@@ -88,7 +88,7 @@ Data:
   padding_amount: 10
 
   # Detailed Dataset Setttings
-  dataset_type: ["S2_75k","S2_100k"] # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k','worldstrat']
+  dataset_type: "S2_75k" # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k','worldstrat']
   data_dir:  #'/data1/simon/datasets/inf_data/' 
   # Individual Dataset settings
   sen2naip_settings:
