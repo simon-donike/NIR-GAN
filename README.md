@@ -194,4 +194,4 @@ data/synthDataset/
 [6] [ESA SPOT-6 DAta](https://earth.esa.int/eogateway/catalog/spot-6-and-7-esa-archive)
 
 #### Acknowledgements
-This work builds upon the Pix2Pix framework and PatchGAN architecture. Funding support was provided by the ESA Φ-lab.
+This work builds upon the [Pix2Pix](https://github.com/phillipi/pix2pix) framework, PatchGAN architecture, and [SatCLIP embeddings](https://github.com/microsoft/satclip). Funding support was provided by the [ESA Φ-lab](https://philab.esa.int/) within the project "OpenSR".
