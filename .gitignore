@@ -8,6 +8,8 @@ validation_utils/
 validation_utils/*
 predict_nir_dataset.py
 data/synthDataset/
+configs/val_confs/*
+
 
 # local nonsense
 train_sweep.py

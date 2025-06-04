@@ -11,7 +11,6 @@ NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from R
 
 
 ## Project Objectives
-## Project Objectives
 
 The goal of NIR-GAN is to address a persistent limitation in remote sensing workflows: the absence of near-infrared (NIR) information in high-resolution (HR) or legacy RGB-only imagery. While NIR bands are essential for a wide range of applications—including vegetation monitoring, land cover classification, urban analysis, and disaster response—they are often missing in datasets derived from very high-resolution (VHR) sensors or RGB-only basemaps.
 
@@ -79,9 +78,9 @@ data/synthDataset/
 
 
 
-## Verification Features
+## Results and Validation Showcase
 
-**NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of multi-scale EI imagery.  
+**NIR Prediction**: Use a GAN architecture to synthesize the NIR band directly from the RGB bands of multi-scale EO imagery.  
 ![nir_viz](resources/nir_viz.png)
   
 **Visualization of NIR Quality**: Track the GAN’s progress and evaluate the quality of the predicted NIR bands, as well as derivative Indices like NDVI, NDWI, and EVI.  
@@ -97,6 +96,8 @@ The model is trained using
 - a collection of worldwide-sampled Landsat-8 and Sentinel-2 images,
 - SEN2NAIP-v2 [1], 
 - worldstrat [2], 
+- ESA SPOT-6 archive data [6]
+  
 from which the RGB inputs and the corresponding NIR band have been extracted. These datasets provide the necessary spectral information in the visible and near-infrared range to train the GAN for NIR prediction, in multiple scales, and with a worldwide geographic distribution. The images are randomly sampled from the different datasets during training. In order to make the model scale-agnostic, we randomly sample a derivative resolution form the datasets according to the following table.  
 
 | Sensor      | Patches | Native Spatial Resolution | Geographic Distribution |
@@ -154,7 +155,7 @@ python train.py --satclip y
 
 Features:
 - Multi-GPU support
-- Metric and Image Logging: pass WandB Callback to PL-Trainer to enable wandb logging
+- Metric and Image Logging to **[WandB](https://wandb.ai/)**: pass callback to PL-Trainer to enable wandb logging
 - Adjust hyperparamters in config file, such as
     - model sizes, inputs and properties
     - finetuning on previous checkpoints
@@ -170,3 +171,4 @@ Features:
 [3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
 [4] [SatCLIP](https://github.com/microsoft/satclip)  
 [5] [S100K](https://github.com/microsoft/satclip?tab=readme-ov-file#use-of-the-s2-100k-dataset)
+[6] [ESA SPOT-6 DAta](https://earth.esa.int/eogateway/catalog/spot-6-and-7-esa-archive)
