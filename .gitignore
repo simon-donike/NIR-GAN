@@ -1,3 +1,6 @@
+data/*
+!data/SR_dataset_RGB.py
+
 
 validation_utils
 validation_utils/
