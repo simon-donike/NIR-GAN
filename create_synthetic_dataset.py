@@ -21,7 +21,7 @@ device = "cpu"
 from model.pix2pix import Px2Px_PL
 config = OmegaConf.load("configs/config_px2px.yaml") # Get config file
 # GET CKPT FROM https://huggingface.co/simon-donike/NIR-GAN
-ckpt_path = "logs/best/S2.ckpt" # Path to checkpoint file
+ckpt_path = "ckpts/S2.ckpt" # Path to checkpoint file
 model = Px2Px_PL(config) # Instantiate the model
 model.load_state_dict(torch.load(ckpt_path)['state_dict'],strict=False) # load into model
 model = model.eval() # set to eval mode
@@ -87,6 +87,7 @@ def plot_example(lr,hr,pred_nir,real_nir,idx):
 
 # 4. --------
 # Get Data
+# GET DATA FROM https://huggingface.co/simon-donike/NIR-GAN
 from data.SR_dataset_RGB import SR_dataset
 dataset  = SR_dataset(root_dir = "data/synthDataset")
 dl = DataLoader(dataset, batch_size=2, shuffle=False)

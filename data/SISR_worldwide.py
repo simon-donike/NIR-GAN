@@ -117,5 +117,7 @@ if __name__ == "__main__":
     dl = DataLoader(dataset, batch_size=1, shuffle=False)
     batch = next(iter(dl))
     
+    """
     for i in range(250):
         dataset.save_geotiff(i)
+    """
