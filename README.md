@@ -191,7 +191,7 @@ data/synthDataset/
 [3] [Pix2Pix](https://github.com/phillipi/pix2pix)  
 [4] [SatCLIP](https://github.com/microsoft/satclip)  
 [5] [S100K](https://github.com/microsoft/satclip?tab=readme-ov-file#use-of-the-s2-100k-dataset)  
-[6] [ESA SPOT-6 DAta](https://earth.esa.int/eogateway/catalog/spot-6-and-7-esa-archive)  
+[6] [ESA SPOT-6 Data](https://earth.esa.int/eogateway/catalog/spot-6-and-7-esa-archive)  
 
 
 #### Acknowledgements
