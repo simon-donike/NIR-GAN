@@ -1,4 +1,16 @@
-![Sample Result](resources/banner.png)
+## Table of Contents
+- [NIRGAN: Intro](#nir-gan-synthetic-nir-band-from-rgb-remote-sending-imagery)
+  - ["Project Objectives"](#project-objectives)
+  - [Results and Validation Showcase](#results-and-validation-showcase)
+- [Model Information](#model-information)
+  - [Training Data](#training-data)
+  - [Architechture](#architechture)
+    - [SatCLIP Geographic Priors](#satclip-geographic-priors)
+    - [Application-specific losses](#application-specific-losses)
+- [Installation](#installation)
+- [Train on Custom Dataset](#train-on-custom-dataset)
+- [Use Case: Semi-Synthetic Dataset Generation](#use-case-semi-synthetic-dataset-generation)
+
 
 
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
@@ -8,6 +20,7 @@ NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from R
 - **Location Priors**: SatCLIP embeddings provide geographic context
 - **Application-specific Loss**: refined loss formulation including spectral indices improve spectral coherence  
 
+![Sample Result](resources/banner.png)
 
 
 ## Project Objectives
@@ -15,67 +28,6 @@ NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from R
 The goal of NIR-GAN is to address a persistent limitation in remote sensing workflows: the absence of near-infrared (NIR) information in high-resolution (HR) or legacy RGB-only imagery. While NIR bands are essential for a wide range of applications—including vegetation monitoring, land cover classification, urban analysis, and disaster response—they are often missing in datasets derived from very high-resolution (VHR) sensors or RGB-only basemaps.
 
 NIR-GAN is designed to bridge this gap by synthesizing the NIR band directly from RGB imagery using a conditional generative adversarial network (cGAN). It enables the transformation of RGB-only datasets into pseudo-multispectral datasets by learning spectral mappings through image-to-image translation.
-
-
-## Use Case – Semi-Synthetic Dataset Generation
-### Motivation
-In many remote sensing super-resolution pipelines, we assume access to co-registered high-resolution (HR) RGB images and corresponding low-resolution (LR) multispectral imagery (e.g., Sentinel-2 with an NIR band). However, HR images—often aerial or commercial satellite data—frequently contain only RGB channels, lacking the crucial NIR information needed for tasks like vegetation monitoring, water body delineation, or land cover classification.
-
-To address this, we propose a **semi-synthetic dataset generation pipeline** that enriches HR RGB imagery with a *synthetic* NIR band predicted from the RGB data. This enables the creation of pseudo-multispectral HR data where none existed before, and allows us to:
-- Simulate Sentinel-2-like 4-band (RGB+NIR) imagery at higher resolutions.
-- Train and evaluate super-resolution or domain adaptation models in the absence of true HR NIR.
-- Explore new downstream applications on previously limited RGB-only datasets.
-
-### Methodology
-
-We use our trained NIR-GAN model to synthesize the NIR band from HR RGB images, using spatial context from aligned LR RGB-NIR (e.g. Sentinel-2) as a reference for histogram matching.
-
-The process involves:
-1. **Loading a pre-trained Pix2Pix model** trained to predict NIR from RGB.
-2. **Feeding HR RGB patches into the generator**.
-3. **Optionally matching histograms** of the output to low-resolution Sentinel-2 NIR for spectral realism.
-4. **Saving the predicted NIR bands** as `.npz` files for use in further experiments.
-
-This results in a dataset of HR RGB + synthetic NIR 4-channel data.
-
-### Example Code Snippet
-
-```python
-# Load model
-model = Px2Px_PL(config)
-model.load_state_dict(torch.load("logs/best/S2.ckpt")['state_dict'], strict=False)
-model = model.eval().to(device)
-
-# Run inference
-for batch in dataloader:
-    hr_rgb = batch["hr"].to(device)
-    with torch.no_grad():
-        synth_nir = model(hr_rgb).cpu()
-    
-    # Optional: Match predicted NIR to Sentinel-2 NIR histogram
-    matched_nir = histogram_match(synth_nir, batch["s2_nir"])
-    
-    # Save NIR bands
-    for nir, name in zip(matched_nir, batch["id"]):
-        save_image(nir, "data/synthDataset/synth_nirs", name)
-```
-Each predicted NIR band is saved as a compressed `.npz` file using `numpy.savez_compressed()` for storage efficiency and ease of downstream loading.
-
-### Output Structure
-After running the generation script, your dataset will look like:
-```bash
-data/synthDataset/
-├── hr/               # High-res RGB inputs
-├── lr/               # Low-res RGBNIR Sentinel-2 (reference)
-├── synth_nirs/       # Synthesized NIR bands (.npz)
-```
-
-### Examples
-![ds_1](resources/synth_ex_1.png)
-![ds_2](resources/synth_ex_2.png)
-![ds_3](resources/synth_ex_3.png)
-![ds_4](resources/synth_ex_4.png)
-
 
 
 ## Results and Validation Showcase
@@ -136,16 +88,22 @@ We combine standard reconstruction losses (L1 and Earth Mover’s Distance on hi
 ![f1](resources/formula1.png)
 ![f2](resources/formula2.png)
 
-### Installation
-Clone the repository:
-
+# Installation
+1. Clone the repository
 ```bash
-git clone https://github.com/simon-donike/NIR_SRGAN.git
-cd NIR_SRGAN
+git clone https://github.com/simon-donike/NIR-SRGAN.git
+cd NIR-SRGAN
 ```
+2. Install requirements into virtual environment
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+pip install -r requirements.txt
+```
+3. Download checkpoints and synthetic dataset from [HuggingFace](https://huggingface.co/simon-donike/NIR-GAN).
 
 
-### Train on Custom Dataset
+## Train on Custom Dataset
 To train on your own dataset, switch out the pytorch-lightning datamodule in the train.py script with your own. Your dataloader needs to return a dictionary with the following keys:
 - "rgb": Bx3xWxH RGB image tensor
 - "nir": Bx1xWxH NIR image tensor, then run
@@ -165,6 +123,68 @@ Features:
     - optimizer scheduler settings (patience, factor, etc)
     - etc.
 
+
+# Use Case: Semi-Synthetic Dataset Generation
+### Motivation
+In many remote sensing super-resolution pipelines, we assume access to co-registered high-resolution (HR) RGB images and corresponding low-resolution (LR) multispectral imagery (e.g., Sentinel-2 with an NIR band). However, HR images—often aerial or commercial satellite data—frequently contain only RGB channels, lacking the crucial NIR information needed for tasks like vegetation monitoring, water body delineation, or land cover classification.
+
+To address this, we propose a **semi-synthetic dataset generation pipeline** that enriches HR RGB imagery with a *synthetic* NIR band predicted from the RGB data. This enables the creation of pseudo-multispectral HR data where none existed before, and allows us to:
+- Simulate Sentinel-2-like 4-band (RGB+NIR) imagery at higher resolutions.
+- Train and evaluate super-resolution or domain adaptation models in the absence of true HR NIR.
+- Explore new downstream applications on previously limited RGB-only datasets.
+
+### Methodology
+
+We use our trained NIR-GAN model to synthesize the NIR band from HR RGB images, using spatial context from aligned LR RGB-NIR (e.g. Sentinel-2) as a reference for histogram matching.
+
+The process involves:
+1. **Loading a pre-trained Pix2Pix model** trained to predict NIR from RGB.
+2. **Feeding HR RGB patches into the generator**.
+3. **Optionally matching histograms** of the output to low-resolution Sentinel-2 NIR for spectral realism.
+4. **Saving the predicted NIR bands** as `.npz` files for use in further experiments.
+
+This results in a dataset of HR RGB + synthetic NIR 4-channel data.
+
+### Example Code Snippet
+
+```python
+# Load model
+model = Px2Px_PL(config)
+model.load_state_dict(torch.load("logs/best/S2.ckpt")['state_dict'], strict=False)
+model = model.eval().to(device)
+
+# Run inference
+for batch in dataloader:
+    hr_rgb = batch["hr"].to(device)
+    with torch.no_grad():
+        synth_nir = model(hr_rgb).cpu()
+    
+    # Optional: Match predicted NIR to Sentinel-2 NIR histogram
+    matched_nir = histogram_match(synth_nir, batch["s2_nir"])
+    
+    # Save NIR bands
+    for nir, name in zip(matched_nir, batch["id"]):
+        save_image(nir, "data/synthDataset/synth_nirs", name)
+```
+Each predicted NIR band is saved as a compressed `.npz` file using `numpy.savez_compressed()` for storage efficiency and ease of downstream loading.
+
+### Output Structure
+After running the generation script, your dataset will look like:
+```bash
+data/synthDataset/
+├── hr/               # High-res RGB inputs
+├── lr/               # Low-res RGBNIR Sentinel-2 (reference)
+├── synth_nirs/       # Synthesized NIR bands (.npz)
+```
+
+### Examples
+![ds_1](resources/synth_ex_1.png)
+![ds_2](resources/synth_ex_2.png)
+![ds_3](resources/synth_ex_3.png)
+![ds_4](resources/synth_ex_4.png)
+
+
+
 #### Sources
 [1] [SEN2NAIP](https://huggingface.co/datasets/isp-uv-es/SEN2NAIP)  
 [2] [worldstrat](https://worldstrat.github.io/)  
@@ -172,3 +192,6 @@ Features:
 [4] [SatCLIP](https://github.com/microsoft/satclip)  
 [5] [S100K](https://github.com/microsoft/satclip?tab=readme-ov-file#use-of-the-s2-100k-dataset)
 [6] [ESA SPOT-6 DAta](https://earth.esa.int/eogateway/catalog/spot-6-and-7-esa-archive)
+
+#### Acknowledgements
+This work builds upon the Pix2Pix framework and PatchGAN architecture. Funding support was provided by the ESA Φ-lab.
