@@ -107,13 +107,14 @@ for v,batch in tqdm(enumerate(dl),total=len(dl), desc="Predicting NIR..."):
     lr,hr,s2_nir,pred = lr.cpu(),hr.cpu(),s2_nir.cpu(),pred.cpu()
     
     # Histogram Match prediction to S2 NIR - LR
-    pred_nir = histogram_match(image=pred, reference=s2_nir)
+    s2_nir_int = torch.nn.functional.interpolate(s2_nir,scale_factor=4)  # interpolate to HR size for int.
+    pred_nir = histogram_match(image=pred, reference=s2_nir_int)
     
     # Save Image
     for im,t_id in zip(pred_nir,name):
         # change to float 16
         im = im.to(torch.float16)
-        save_image(im, out_path="nir_out_path", name=t_id)
+        save_image(im, out_path=nir_out_path, name=t_id)
         
     # Save Example
     if v % 10 == 0:

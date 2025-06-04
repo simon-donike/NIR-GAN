@@ -50,7 +50,7 @@ class SR_dataset(Dataset):
         
         return {"lr":lr_rgb,
                 "hr":hr_rgb,
-                "s2_nir":lr_nir,
+                "s2_nir":lr_nir.unsqueeze(0),  # Assuming NIR is the 4th band in LR
                 "coords":centroid_coords,
                 "id": fname.split('.')[0]
             }

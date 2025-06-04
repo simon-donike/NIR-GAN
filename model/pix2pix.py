@@ -11,7 +11,6 @@ from utils.logging_helpers import plot_index
 from model import networks
 from utils.losses import ssim_loss
 from utils.losses import emd_loss as hist_loss
-from validation_utils.time_series_validation import calculate_and_plot_timeline
 import gc
 
 
@@ -350,7 +349,7 @@ class Px2Px_PL(pl.LightningModule):
             # if epoch is a multiple of 10, log time series
             log_time_series = False
             if self.current_epoch % self.config.custom_configs.Logging.time_series_frequency_epochs == 0 and log_time_series == True:
-
+                from validation_utils.time_series_validation import calculate_and_plot_timeline
                 pil_image_texas_cropcircles = calculate_and_plot_timeline(model = self,
                                                         device=self.device,
                                                         root_dir="validation_utils/time_series_texas_cropcircles/*.tif",
