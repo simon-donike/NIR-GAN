@@ -4,7 +4,7 @@
 (d) SatCLIP License
 
 
------------------------------ LICENSE for Base Repository --------------------------------
+----------------------------- (a) LICENSE for Base Repository --------------------------------
 
 
                                  Apache License
@@ -198,7 +198,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
------------------------------ LICENSE FOR Pix2Pix Model Code --------------------------------
+----------------------------- (b) LICENSE FOR Pix2Pix Model Code --------------------------------
 Copyright (c) 2016, Phillip Isola and Jun-Yan Zhu
 All rights reserved.
 
@@ -224,7 +224,7 @@ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
------------------------------ LICENSE FOR DCGAN --------------------------------
+----------------------------- (c) LICENSE FOR DCGAN --------------------------------
 BSD License
 
 For dcgan.torch software
@@ -243,7 +243,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 
 
------------------------------ LICENSE FOR SATCLIP --------------------------------
+----------------------------- (d) LICENSE FOR SATCLIP --------------------------------
 
 MIT License
 
