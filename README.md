@@ -14,7 +14,8 @@
 
 
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
-NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available. Highlights:
+NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available.  
+**Highlights:**
 - **Sensor-agnostic**: trained to provide realistic NIR regardless of sensor
 - **Multi-scale inputs**: trained on a variety of resolutions  
 - **Location Priors**: SatCLIP embeddings provide geographic context
