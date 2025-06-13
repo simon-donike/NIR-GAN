@@ -1,6 +1,7 @@
 # data structures
 data/*
 !data/SR_dataset_RGB.py
+env_files/
 
 # validation experimentation nonsense
 validation_utils

@@ -17,22 +17,21 @@ from model.pix2pix import Px2Px_PL
 if __name__ == '__main__':
     # get CL arguments
     parser = argparse.ArgumentParser(description='Training script for NIR-GAN.')
-    parser.add_argument('--satclip', required=False,default=True,
-                        help='Enable satclip (default: True)')
-    parser.add_argument('--baseline', required=False,default=False,
-                        help='Train Baseline Model (default: False)')
+    parser.add_argument('--satclip', required=True,
+                        help='Enable satclip: "y" or "n")')
+    parser.add_argument('--model_type', required=True, choices=['gan', 'vit', 'baseline'],
+                        help='Select model type: gan, vit, or baseline')
     args = parser.parse_args()
-    args.satclip = str2bool(args.satclip)
     args.satclip = str2bool(args.satclip)
 
     # General
     torch.set_float32_matmul_precision('medium')
 
     # load config depending on setting
-    if args.baseline: # overwrite settings for baseline models
-        print("Baseline:",args.baseline)
+    if args.model_type == 'baseline':
+        print("Model type: baseline")
         config = OmegaConf.load("configs/config_baselines.yaml") # Baseline
-    else:
+    elif args.model_type == 'gan':
         print("Satclip:",args.satclip)
         if args.satclip:
             config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
@@ -40,22 +39,33 @@ if __name__ == '__main__':
             config = OmegaConf.load("configs/config_px2px.yaml") # Standard
         else:
             raise ValueError("Invalid Argument for Satclip")
+    elif args.model_type == 'vit':
+        print("Model type: ViT")
+        config = OmegaConf.load("configs/config_vit.yaml")
 
     #############################################################################################################
     " LOAD MODEL "
     #############################################################################################################
-    if not args.baseline:
-        model = Px2Px_PL(config)
-    else:
-        from model.baseline_models import Linear_NIR,MLP_NIR,CNN_NIR
-        if config.base_configs.model_name == "Linear_NIR":
+    if args.model_type == 'baseline':
+        from model.baseline_models import Linear_NIR, MLP_NIR, CNN_NIR
+        name = config.base_configs.model_name
+        if name == "Linear_NIR":
             model = Linear_NIR(config)
-        elif config.base_configs.model_name == "MLP_NIR":
+        elif name == "MLP_NIR":
             model = MLP_NIR(config)
-        elif config.base_configs.model_name == "CNN_NIR":
+        elif name == "CNN_NIR":
             model = CNN_NIR(config)
         else:
-            raise ValueError("Invalid Model Name")
+            raise ValueError(f"Invalid baseline model name: {name}")
+    elif args.model_type == 'gan':
+        model = Px2Px_PL(config)
+    elif args.model_type == 'vit':
+        print("Loading ViT Model. Always using SatCLIP for ViT.")
+        from model.vit_model import NIRLitModule  # Replace with your actual ViT model class
+        model = NIRLitModule(config)
+        
+    import sys
+    sys.exit(0) # exit if no model is wanted
 
     # set reload checkpoint settings for trainer
     if config.custom_configs.Model.load_weights_only==True:
