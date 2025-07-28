@@ -11,19 +11,12 @@ class SatClIP_wrapper(pl.LightningModule):
     def __init__(self, satclip_path=None,device="cpu"):
         super().__init__()
         if satclip_path is None:
-            satclip_path = "model/satclip/satclip-resnet50-l10.ckpt"
+            satclip_path = "/data1/simon/GitHub/NIR-GAN/model/satclip/satclip-resnet50-l10.ckpt"
         self.encoder_model =  get_satclip(satclip_path,device=device)
         
-        """
-        ckpt = torch.load(satclip_path)
-        ckpt['hyper_parameters'].pop('eval_downstream')
-        ckpt['hyper_parameters'].pop('air_temp_data_path')
-        ckpt['hyper_parameters'].pop('election_data_path')
-        _ = SatCLIPLightningModule(**ckpt['hyper_parameters'])
-        _.load_state_dict(ckpt['state_dict'])
-        _.eval()
-        self.encoder_model = _.model
-        """
+        # set all params to freeze
+        for param in self.encoder_model.parameters():
+            param.requires_grad = False
         
 
     def predict(self, x):
@@ -34,23 +27,45 @@ class SatClIP_wrapper(pl.LightningModule):
             return embeds
         
     def forward(self, x):
-        print("Don't use fwd, use 'predict' step instead")
-        return self.encoder_model(x.double())
+        with torch.no_grad():
+            print("Don't use fwd, use 'predict' step instead")
+            return self.encoder_model(x.double())
     
     
     
 # Test 
 if __name__=="__main__":
-    satclip_path = "/data1/simon/GitHub/NIR_GAN/model/satclip/satclip-resnet50-l10.ckpt"
+    satclip_path = "/data1/simon/GitHub/NIR-GAN/model/satclip/satclip-resnet50-l10.ckpt"
     model = SatClIP_wrapper(satclip_path)
-    print("Amount of Parameters:", sum(p.numel() for p in model.parameters() if p.requires_grad))
+    print("Amount of Parameters:", sum(p.numel() for p in model.parameters()))
     
+    
+# Run inf on an unrelated dataset
+if __name__=="__main__" and False:
+    # load data
+    import pandas as pd
+    import os
+    from shapely import wkt
+    import numpy as np
     from tqdm import tqdm
-    for i in tqdm(range(1000)):
-        # create random coordinates
-        amount = 24
-        lon = torch.rand(amount) * 180 - 90  # Scale to [-90, 90]
-        lat = torch.rand(amount) * 360 - 180 # Scale to [-180, 180]
-        coords = torch.stack((lon,lat),dim=-1)
-        embeds = model.predict(coords)
+    df = pd.read_pickle("/data1/simon/GitHub/latent-diffusion/md_satclip.pkl")
+    for coor in tqdm(df["stac:centroid"]):
+        pt = wkt.loads(coor)
+        lon = pt.x
+        lat = pt.y  
+        embedding = model.predict(torch.tensor([[lon, lat]]))
+        embedding_np = embedding.detach().cpu().numpy()
+        out_path = "/data3/SEN2NAIP_global/satclip_embs"
+        filename = f"satclip_{lon:.5f}_{lat:.5f}"
+        filename = os.path.join(out_path, filename)
+        # now save compressed embedding
+        np.savez_compressed(filename, embedding=embedding_np)             
+        
+        
+    def load_embedding(lon, lat):
+        filename = f"satclip_{lon:.5f}_{lat:.5f}.npz"
+        arr = np.load(filename)
+        embedding = torch.from_numpy(arr["embedding"])
+        return embedding   
     
+        

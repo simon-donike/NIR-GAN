@@ -10,8 +10,13 @@ import time
 import argparse
 from utils.other_utils import str2bool
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 # local imports
 from model.pix2pix import Px2Px_PL
+
+
+
 
 # Run Main Function
 if __name__ == '__main__':
@@ -64,8 +69,10 @@ if __name__ == '__main__':
         from model.vit_model import NIRLitModule  # Replace with your actual ViT model class
         model = NIRLitModule(config)
         
-    import sys
-    sys.exit(0) # exit if no model is wanted
+    test_selection = False
+    if test_selection:
+        import sys
+        sys.exit(0)
 
     # set reload checkpoint settings for trainer
     if config.custom_configs.Model.load_weights_only==True:
@@ -77,7 +84,6 @@ if __name__ == '__main__':
     resume_from_checkpoint=None
     if config.custom_configs.Model.load_checkpoint==True:
         resume_from_checkpoint=config.custom_configs.Model.ckpt_path
-        #resume_from_checkpoint = model.clean_checkpoint(resume_from_checkpoint,["pred_cache"]) # clean state dict manually
         print("Resuming from checkpoint PL-style:",resume_from_checkpoint)
 
     #############################################################################################################
@@ -133,7 +139,7 @@ if __name__ == '__main__':
                     limit_val_batches=5,
                     max_steps=200_000,
                     #max_epochs=20,
-                    resume_from_checkpoint=resume_from_checkpoint,
+                    #resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,
                             ],

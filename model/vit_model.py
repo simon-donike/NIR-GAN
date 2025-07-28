@@ -69,9 +69,21 @@ class NIRLitModule(pl.LightningModule):
 
     def forward(self, rgb, location):
         return self.model(rgb, location)
+    
+    def predict_step(self,rgb,location,batch_idx=None):
+        """
+        Predict step for inference, returns NIR prediction
+        """
+        with torch.no_grad():
+            nir_pred = self(rgb, location)
+        return nir_pred
 
     def training_step(self, batch, batch_idx):
-        rgb, location, nir_gt = batch
+        # extract data
+        rgb = batch["rgb"]
+        location = batch["coords"]  # or "location"
+        nir_gt = batch["nir"]
+        
         nir_pred = self(rgb, location)
         loss = F.l1_loss(nir_pred, nir_gt)
         # Calculate and Log Train Metrics  - only every 10th batch on Gen step
@@ -83,7 +95,12 @@ class NIRLitModule(pl.LightningModule):
         
 
     def validation_step(self, batch, batch_idx):
-        rgb, location, nir_gt = batch
+        # extract data
+        rgb = batch["rgb"]
+        location = batch["coords"]  # or "location"
+        nir_gt = batch["nir"]
+        
+        # run fwd, pull loss
         nir_pred = self(rgb, location)
         loss = F.l1_loss(nir_pred, nir_gt)
         self.log("val_loss", loss)
@@ -115,7 +132,11 @@ class NIRLitModule(pl.LightningModule):
                                 on_epoch=True,sync_dist=True)
 
     def configure_optimizers(self):
-        optim = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optim = torch.optim.AdamW([
+                {"params": self.model.transformer.parameters(), "lr": 2e-5},
+                {"params": self.model.token_fusion.parameters(), "lr": 1e-4},
+                {"params": self.model.output_proj.parameters(), "lr": 1e-4}
+            ], weight_decay=self.config.base_configs.weight_decay)
         sched = ReduceLROnPlateau(optim, mode='min',
                                   patience=self.config.Schedulers.patience,
                                   factor=self.config.Schedulers.factor)
@@ -129,14 +150,38 @@ class NIRLitModule(pl.LightningModule):
                             "frequency": 1
                         }
                     } 
+    def on_train_epoch_start(self):
+        if self.config.base_configs.freeze_vit_epochs != False:
+            try:
+                # logic to freeze vit layers on first 5 epochs
+                freeze_epochs = self.config.base_configs.freeze_vit_epochs  # e.g. 5
+                if self.current_epoch == freeze_epochs:
+                    for param in self.model.transformer.parameters():
+                        param.requires_grad = True
+                    self.print(f"ViT unfrozen at epoch {self.current_epoch}")
+                elif self.current_epoch < freeze_epochs:
+                    for param in self.model.transformer.parameters():
+                        param.requires_grad = False
+                    if self.current_epoch == 0:
+                        self.print("ViT is frozen during initial epochs")
+            except RuntimeError as e:
+                print("Error during on_train_epoch_start, likely due to Trainer in self.model.")
 
 
 if __name__ == "__main__":
     # Example usage
     from omegaconf import OmegaConf
     config = OmegaConf.load("configs/config_vit.yaml")
-    model = NIRGenerator(config)
+    model = NIRLitModule(config)
     rgb = torch.randn(2, 3, 224, 224)  # Example RGB input
     location = torch.randn(2, 2)  # Example location embedding
+    nir_gt = torch.randn(2, 1, 224, 224)  # Example ground truth NIR input
     nir_output = model(rgb, location)
     
+    batch = {"rgb": rgb, "coords": location, "nir": nir_gt}
+        
+    model.training_step(batch,0)  # Example training step
+    model.validation_step(batch,0)  # Example validation step
+    
+    o = model.forward(batch["rgb"], batch["coords"])  # Example forward pass
+    print(o.shape)

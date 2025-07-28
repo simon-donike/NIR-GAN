@@ -1,7 +1,8 @@
 base_configs:
   model_name: "ViT" # ["Linear_NIR","MLP_NIR","CNN_NIR","ViT"]
   learning_rate: 1e-3
-
+  weight_decay: 0.01
+  freeze_vit_epochs: False # False or int
 
 # Logging and PL-Trainer Settings
 custom_configs:
@@ -21,7 +22,7 @@ custom_configs:
   Training:
     accelerator: "gpu"
     devices: [0]
-    strategy: "ddp" # ['ddp', 'dp']
+    strategy: "ddp_find_unused_parameters_true" # ['ddp', 'dp']
   
   # setting sfor experimentation
   experimentation:
@@ -30,7 +31,7 @@ custom_configs:
 
 # Optim Scheduler Settings
 Schedulers:
-  metric: 'val/L1'
+  metric: 'val_loss'
   patience: 5
   factor: 0.5
   verbose: True
@@ -41,7 +42,7 @@ Data:
   normalize: False # TODO: removed this option
   
   # Dataloader Settings
-  train_batch_size: 32 # 24 in normal scenario
+  train_batch_size: 16 # 24 in normal scenario
   val_batch_size: 5
   num_workers: 16
   prefetch_factor: 2
@@ -55,7 +56,7 @@ Data:
   # If mixed dataset, input list in dataset_type
   # If single dataset, input String in dataset_type
   # Options: ['SEN2NAIP', 'S2_rand',S2_100k,'worldstrat','L8_15k']
-  dataset_type: ['L8_15k'] # S2NAIP ,S2_100k, worldstrat, L8_15k
+  dataset_type: ['S2_100k'] # S2NAIP ,S2_100k, worldstrat, L8_15k
   # source ../../envs/bare2/bin/activate
   # python train.py --baseline y
   
@@ -79,7 +80,7 @@ Data:
     return_coords: True
     clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
   S2_100k_settings:
-    image_size: 256
+    image_size: 224
     base_path: "/data2/simon/s100k/images/"
     continent_geojson: "/data2/simon/s100k/continents.geojson"
     return_clc_mask: False
@@ -87,7 +88,7 @@ Data:
     return_coords: True
   worldstrat_settings:
     image_type: "hr" # ["lr","hr"]
-    image_size: 256
+    image_size: 224
     return_coords: True
   L8_15k_settings:
     base_path: "/data2/simon/nirgan_l8/"
