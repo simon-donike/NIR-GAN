@@ -10,29 +10,32 @@ import time
 import argparse
 from utils.other_utils import str2bool
 
+#os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+
 # local imports
 from model.pix2pix import Px2Px_PL
+
+
 
 # Run Main Function
 if __name__ == '__main__':
     # get CL arguments
     parser = argparse.ArgumentParser(description='Training script for NIR-GAN.')
-    parser.add_argument('--satclip', required=False,default=True,
-                        help='Enable satclip (default: True)')
-    parser.add_argument('--baseline', required=False,default=False,
-                        help='Train Baseline Model (default: False)')
+    parser.add_argument('--satclip', required=True,
+                        help='Enable satclip: "y" or "n")')
+    parser.add_argument('--model_type', required=True, choices=['gan', 'vit', 'baseline','gan_baseline'],
+                        help='Select model type: gan, vit, or baseline')
     args = parser.parse_args()
-    args.satclip = str2bool(args.satclip)
     args.satclip = str2bool(args.satclip)
 
     # General
     torch.set_float32_matmul_precision('medium')
 
     # load config depending on setting
-    if args.baseline: # overwrite settings for baseline models
-        print("Baseline:",args.baseline)
+    if args.model_type == 'baseline':
+        print("Model type: baseline")
         config = OmegaConf.load("configs/config_baselines.yaml") # Baseline
-    else:
+    elif args.model_type == 'gan':
         print("Satclip:",args.satclip)
         if args.satclip:
             config = OmegaConf.load("configs/config_px2px_SatCLIP.yaml") # SatCLIP
@@ -40,22 +43,42 @@ if __name__ == '__main__':
             config = OmegaConf.load("configs/config_px2px.yaml") # Standard
         else:
             raise ValueError("Invalid Argument for Satclip")
+    elif args.model_type == "gan_baseline":
+        config = OmegaConf.load("configs/config_px2px_baseline.yaml") # Gan Baseline
+    elif args.model_type == 'vit':
+        print("Model type: ViT")
+        config = OmegaConf.load("configs/config_vit.yaml")
+    else:
+        raise NotImplementedError("Unknown model type at CLI args:",args.model_type)
 
     #############################################################################################################
     " LOAD MODEL "
     #############################################################################################################
-    if not args.baseline:
-        model = Px2Px_PL(config)
-    else:
-        from model.baseline_models import Linear_NIR,MLP_NIR,CNN_NIR
-        if config.base_configs.model_name == "Linear_NIR":
+    if args.model_type == 'baseline':
+        from model.baseline_models import Linear_NIR, MLP_NIR, CNN_NIR
+        name = config.base_configs.model_name
+        if name == "Linear_NIR":
             model = Linear_NIR(config)
-        elif config.base_configs.model_name == "MLP_NIR":
+        elif name == "MLP_NIR":
             model = MLP_NIR(config)
-        elif config.base_configs.model_name == "CNN_NIR":
+        elif name == "CNN_NIR":
             model = CNN_NIR(config)
         else:
-            raise ValueError("Invalid Model Name")
+            raise ValueError(f"Invalid baseline model name: {name}")
+    elif args.model_type == 'gan' or args.model_type == 'gan_baseline':
+        model = Px2Px_PL(config)
+    elif args.model_type == 'vit':
+        print("Loading ViT Model. Always using SatCLIP for ViT.")
+        from model.vit_model import NIRLitModule  # Replace with your actual ViT model class
+        model = NIRLitModule(config)
+    else:
+        raise NotImplementedError("Unknown model type at CLI args:",args.model_type)
+    
+    # Leftover code to test selection procedures of CLIs
+    test_selection = False
+    if test_selection:
+        import sys
+        sys.exit(0)
 
     # set reload checkpoint settings for trainer
     if config.custom_configs.Model.load_weights_only==True:
@@ -67,7 +90,6 @@ if __name__ == '__main__':
     resume_from_checkpoint=None
     if config.custom_configs.Model.load_checkpoint==True:
         resume_from_checkpoint=config.custom_configs.Model.ckpt_path
-        #resume_from_checkpoint = model.clean_checkpoint(resume_from_checkpoint,["pred_cache"]) # clean state dict manually
         print("Resuming from checkpoint PL-style:",resume_from_checkpoint)
 
     #############################################################################################################
@@ -122,8 +144,8 @@ if __name__ == '__main__':
                     #val_check_interval=50,
                     limit_val_batches=5,
                     max_steps=200_000,
-                    #max_epochs=20,
-                    resume_from_checkpoint=resume_from_checkpoint,
+                    max_epochs=500,
+                    #resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,
                             ],

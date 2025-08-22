@@ -77,17 +77,85 @@ def emd_loss(pred, target):
     emd = torch.mean(torch.abs(pred_cdf - target_cdf))
     return emd
 
+def rrmse(pred, ref, reduction=True):
+    """
+    Relative RMSE between predicted and reference images.
+    - Accepts NumPy arrays or PyTorch tensors.
+    - Layout-agnostic: (C,W,H), (W,H,C), (N,C,W,H), (N,W,H,C).
+    - Returns:
+        * scalar (np.float64 or torch.Tensor[()]) for unbatched inputs
+        * 1D array/tensor of shape (N,) for batched inputs if reduction=False
+    """
+    # ---- NumPy ----
+    if isinstance(pred, np.ndarray) and isinstance(ref, np.ndarray):
+        assert pred.shape == ref.shape, "Shapes must match"
+        if pred.ndim == 3:   # unbatched
+            p = pred.reshape(1, -1)
+            r = ref.reshape(1, -1)
+            B = 1
+        elif pred.ndim == 4: # batched
+            B = pred.shape[0]
+            p = pred.reshape(B, -1)
+            r = ref.reshape(B, -1)
+        else:
+            raise ValueError("Expected 3D or 4D input for NumPy arrays")
+
+        mse = np.mean((r - p) ** 2, axis=1)
+        ref_energy = np.mean(r ** 2, axis=1)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            out = np.sqrt(mse) / np.sqrt(ref_energy)
+            out = np.where(ref_energy > 0, out, np.inf)
+
+        if reduction==False:
+            out[0] if B == 1 else out # reduce for 1st if reduction=False
+        else:
+            out = out[0] if B == 1 else np.mean(out)
+
+    # ---- PyTorch ----
+    if isinstance(pred, torch.Tensor) and isinstance(ref, torch.Tensor):
+        assert pred.shape == ref.shape, "Shapes must match"
+        device = pred.device
+        dtype = pred.dtype
+
+        if pred.ndim == 3:   # unbatched
+            p = pred.reshape(1, -1)
+            r = ref.reshape(1, -1)
+            B = 1
+        elif pred.ndim == 4: # batched
+            B = pred.shape[0]
+            p = pred.reshape(B, -1)
+            r = ref.reshape(B, -1)
+        else:
+            raise ValueError("Expected 3D or 4D input for torch tensors")
+
+        mse = torch.mean((r - p) ** 2, dim=1)
+        ref_energy = torch.mean(r ** 2, dim=1)
+        denom = torch.sqrt(ref_energy)
+        num = torch.sqrt(mse)
+        out = torch.where(ref_energy > 0, num / denom, torch.tensor(float('inf'), device=device, dtype=dtype))
+
+        if reduction==False:
+            return out.squeeze(0) if B == 1 else out
+        else:
+            return out.mean()
+
+    raise TypeError("Inputs must both be np.ndarray or both torch.Tensor")
+
+
 
 if __name__ == "__main__":
-    a,b = torch.rand(1,1,512,512), torch.rand(1,1,512,512)+0.1
+    a,b = torch.rand(3,1,512,512), torch.rand(3,1,512,512)+0.1
     ssim = ssim_loss(a,b)
     print("SSIM Loss:", ssim)
     
-    emd = hist_loss(a,b)
+    emd = hist_loss_old(a,b)
     print("Hist Loss:", emd)
     
     emd_loss = emd_loss(a,b)
     print("EMD Loss:", emd_loss)
+    
+    rrmse_value = rrmse(a, b)
+    print("RRMSE:", rrmse_value)
     
 
 

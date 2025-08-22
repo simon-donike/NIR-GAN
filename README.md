@@ -146,6 +146,8 @@ The process involves:
 
 This results in a dataset of HR RGB + synthetic NIR 4-channel data.
 
+Additionally, this repository has the option to train and run a ViT on the data. This funcitonality is included in the repo, but has not been verified to funciton as intended and is experimental only.
+
 ### Example Code Snippet
 Run `create_synthetic_dataset.py` to create a super-resolution dataset with a synthetic HR-NIR band based on our example data or substitute your own.  
 ```python

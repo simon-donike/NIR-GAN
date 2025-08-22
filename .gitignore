@@ -9,12 +9,17 @@ validation_utils/*
 predict_nir_dataset.py
 data/synthDataset/
 configs/val_confs/*
-
+validation_2.py
+validation_runs/*
+validation_runs/
 
 # local nonsense
 train_sweep.py
 validation_landcover.py
 validation.py
+playground/get_osm_map.py
+playground/*
+playground
 
 # General Files
 *.pkl
