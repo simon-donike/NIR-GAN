@@ -10,11 +10,10 @@ import time
 import argparse
 from utils.other_utils import str2bool
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 # local imports
 from model.pix2pix import Px2Px_PL
-
 
 
 
@@ -24,7 +23,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Training script for NIR-GAN.')
     parser.add_argument('--satclip', required=True,
                         help='Enable satclip: "y" or "n")')
-    parser.add_argument('--model_type', required=True, choices=['gan', 'vit', 'baseline'],
+    parser.add_argument('--model_type', required=True, choices=['gan', 'vit', 'baseline','gan_baseline'],
                         help='Select model type: gan, vit, or baseline')
     args = parser.parse_args()
     args.satclip = str2bool(args.satclip)
@@ -44,9 +43,13 @@ if __name__ == '__main__':
             config = OmegaConf.load("configs/config_px2px.yaml") # Standard
         else:
             raise ValueError("Invalid Argument for Satclip")
+    elif args.model_type == "gan_baseline":
+        config = OmegaConf.load("configs/config_px2px_baseline.yaml") # Gan Baseline
     elif args.model_type == 'vit':
         print("Model type: ViT")
         config = OmegaConf.load("configs/config_vit.yaml")
+    else:
+        raise NotImplementedError("Unknown model type at CLI args:",args.model_type)
 
     #############################################################################################################
     " LOAD MODEL "
@@ -62,13 +65,16 @@ if __name__ == '__main__':
             model = CNN_NIR(config)
         else:
             raise ValueError(f"Invalid baseline model name: {name}")
-    elif args.model_type == 'gan':
+    elif args.model_type == 'gan' or args.model_type == 'gan_baseline':
         model = Px2Px_PL(config)
     elif args.model_type == 'vit':
         print("Loading ViT Model. Always using SatCLIP for ViT.")
         from model.vit_model import NIRLitModule  # Replace with your actual ViT model class
         model = NIRLitModule(config)
-        
+    else:
+        raise NotImplementedError("Unknown model type at CLI args:",args.model_type)
+    
+    # Leftover code to test selection procedures of CLIs
     test_selection = False
     if test_selection:
         import sys
@@ -138,7 +144,7 @@ if __name__ == '__main__':
                     #val_check_interval=50,
                     limit_val_batches=5,
                     max_steps=200_000,
-                    #max_epochs=20,
+                    max_epochs=500,
                     #resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,

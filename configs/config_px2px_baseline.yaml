@@ -28,7 +28,7 @@ base_configs:
   use_training_pred_optimization: False
 
   # RS indices weights - 0 for skipping
-  lambda_rs_losses: 0.5 # RS indices vs all others - untested
+  lambda_rs_losses: 0.0 # RS indices vs all others - untested
   rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
   internal_rs_loss_weights:  # RS metrics internal weights
     lambda_ndvi: 0.3333
@@ -55,11 +55,11 @@ custom_configs:
   Model:
     load_checkpoint: False # Continue PL-Style
     ckpt_path: ""
-    load_weights_only: True # Load ckpt file only
+    load_weights_only: False # Load ckpt file only
     weights_path: "logs/exp_NIR_GAN/2025-05-14_10-25-06/last.ckpt" # S75K all training  #"logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
   Training:
     accelerator: "cuda"
-    devices: [0,1,2]
+    devices: [0,1,2,3]
     strategy: "ddp" # ['ddp', 'dp']
 
 # Optim Scheduler Settings
