@@ -95,3 +95,11 @@ Data:
     base_path: "/data2/simon/nirgan_l8/"
     image_size: 256
     return_coords: True
+  SPOT6_settings:
+    index_csv: "playground/spot_dataset.csv"
+    image_type: "hr" # ["lr","hr"]
+    image_size: 256
+    return_coords: True
+    return_clc_mask: False # NotImplemented
+    clc_raster: False # NotImplemented
+    clc_mapping_file: False # NotImplemented
