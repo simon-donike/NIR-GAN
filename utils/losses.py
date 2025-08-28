@@ -77,70 +77,111 @@ def emd_loss(pred, target):
     emd = torch.mean(torch.abs(pred_cdf - target_cdf))
     return emd
 
-def rrmse(pred, ref, reduction=True):
-    """
-    Relative RMSE between predicted and reference images.
-    - Accepts NumPy arrays or PyTorch tensors.
-    - Layout-agnostic: (C,W,H), (W,H,C), (N,C,W,H), (N,W,H,C).
-    - Returns:
-        * scalar (np.float64 or torch.Tensor[()]) for unbatched inputs
-        * 1D array/tensor of shape (N,) for batched inputs if reduction=False
-    """
+def rrmse_old(pred, ref, reduction=True, eps=1e-12):
     # ---- NumPy ----
     if isinstance(pred, np.ndarray) and isinstance(ref, np.ndarray):
         assert pred.shape == ref.shape, "Shapes must match"
-        if pred.ndim == 3:   # unbatched
-            p = pred.reshape(1, -1)
-            r = ref.reshape(1, -1)
+        x = pred.astype(np.float64)
+        y = ref.astype(np.float64)
+
+        if x.ndim == 3:   # [C,H,W] or [H,W,C]
             B = 1
-        elif pred.ndim == 4: # batched
-            B = pred.shape[0]
-            p = pred.reshape(B, -1)
-            r = ref.reshape(B, -1)
+            p = x.reshape(1, -1)
+            r = y.reshape(1, -1)
+        elif x.ndim == 4: # [N,C,H,W] or [N,H,W,C]
+            B = x.shape[0]
+            p = x.reshape(B, -1)
+            r = y.reshape(B, -1)
         else:
             raise ValueError("Expected 3D or 4D input for NumPy arrays")
 
         mse = np.mean((r - p) ** 2, axis=1)
         ref_energy = np.mean(r ** 2, axis=1)
-        with np.errstate(divide='ignore', invalid='ignore'):
-            out = np.sqrt(mse) / np.sqrt(ref_energy)
-            out = np.where(ref_energy > 0, out, np.inf)
 
-        if reduction==False:
-            out[0] if B == 1 else out # reduce for 1st if reduction=False
+        denom = np.sqrt(ref_energy)
+        out = np.sqrt(mse) / np.maximum(denom, eps)  # avoid /0
+        out = np.where(ref_energy > 0, out, np.inf)  # explicit inf if zero-energy
+
+        if reduction is False:
+            return out[0] if B == 1 else out
         else:
-            out = out[0] if B == 1 else np.mean(out)
+            return out[0] if B == 1 else float(out.mean())
 
     # ---- PyTorch ----
     if isinstance(pred, torch.Tensor) and isinstance(ref, torch.Tensor):
         assert pred.shape == ref.shape, "Shapes must match"
-        device = pred.device
-        dtype = pred.dtype
+        x, y = pred.float(), ref.float()
 
-        if pred.ndim == 3:   # unbatched
-            p = pred.reshape(1, -1)
-            r = ref.reshape(1, -1)
+        if x.ndim == 3:
             B = 1
-        elif pred.ndim == 4: # batched
-            B = pred.shape[0]
-            p = pred.reshape(B, -1)
-            r = ref.reshape(B, -1)
+            p = x.reshape(1, -1)
+            r = y.reshape(1, -1)
+        elif x.ndim == 4:
+            B = x.shape[0]
+            p = x.reshape(B, -1)
+            r = y.reshape(B, -1)
         else:
             raise ValueError("Expected 3D or 4D input for torch tensors")
 
         mse = torch.mean((r - p) ** 2, dim=1)
         ref_energy = torch.mean(r ** 2, dim=1)
-        denom = torch.sqrt(ref_energy)
-        num = torch.sqrt(mse)
-        out = torch.where(ref_energy > 0, num / denom, torch.tensor(float('inf'), device=device, dtype=dtype))
 
-        if reduction==False:
+        denom = torch.sqrt(ref_energy + eps)  # epsilon
+        out = torch.sqrt(mse) / denom
+        out = torch.where(ref_energy > 0, out, torch.full_like(out, float('inf')))
+
+        if reduction is False:
             return out.squeeze(0) if B == 1 else out
         else:
             return out.mean()
 
     raise TypeError("Inputs must both be np.ndarray or both torch.Tensor")
 
+
+def rrmse(pred, ref, reduction=True, eps=1e-12, mask=None):
+    assert isinstance(pred, torch.Tensor) and isinstance(ref, torch.Tensor)
+    assert pred.shape == ref.shape, "Shapes must match"
+    x, y = pred.float(), ref.float()
+
+    # Flatten by batch
+    if x.ndim == 3:
+        B = 1; P = x.reshape(1, -1); R = y.reshape(1, -1)
+    elif x.ndim == 4:
+        B = x.shape[0]; P = x.reshape(B, -1); R = y.reshape(B, -1)
+    else:
+        raise ValueError("Expected 3D or 4D tensors")
+
+    if mask is None:
+        M = (R != 0)
+    else:
+        M = mask.reshape(B, -1).bool()
+
+    # per-sample masked means
+    valid = M.sum(dim=1)
+    mse = torch.zeros(B, dtype=x.dtype, device=x.device)
+    ref_energy = torch.zeros_like(mse)
+
+    has_valid = valid > 0
+    if has_valid.any():
+        diff2 = (R[has_valid] - P[has_valid])**2
+        ref2  = (R[has_valid])**2
+        mse[has_valid] = (diff2 * M[has_valid]).sum(dim=1) / valid[has_valid].clamp_min(1)
+        ref_energy[has_valid] = (ref2 * M[has_valid]).sum(dim=1) / valid[has_valid].clamp_min(1)
+
+    # cases:
+    # 1) ref_energy>0 → normal rrmse
+    # 2) ref_energy==0 & mse==0 → define 0
+    # 3) ref_energy==0 & mse>0 → inf
+    out = torch.empty_like(mse)
+    normal = ref_energy > 0
+    zero_ref = ~normal
+    out[normal] = torch.sqrt(mse[normal]) / torch.sqrt(ref_energy[normal] + eps)
+    out[zero_ref] = torch.where(mse[zero_ref] == 0, torch.zeros_like(mse[zero_ref]), torch.full_like(mse[zero_ref], float('inf')))
+
+    if reduction is False:
+        return out if B > 1 else out.squeeze(0)
+    else:
+        return out.mean()
 
 
 if __name__ == "__main__":

@@ -1,0 +1,133 @@
+base_configs:
+  direction: "AtoB"
+  isTrain: true
+  #checkpoints_dir: "logs/checkpoints_px" # unused
+  full_key: null
+  name: "px"
+  preprocess: null
+  input_nc: 3
+  output_nc: 1
+  ngf: 64
+  ndf: 64
+  netD: "basic"
+  netG: "resnet_9blocks"
+  norm: "instance"
+  no_dropout: true
+  init_type: "normal"
+  init_gain: 0.02
+  n_layers_D: 3
+  gan_mode: "lsgan"
+  lr: 0.0002
+  beta1: 0.5 # Adam optimizer beta1
+
+  # Loss weights
+  lambda_GAN: 1.0 # orig:1
+  lambda_L1: 100.0 # orig: 100
+  lambda_ssim: 0.0 # untested
+  lambda_hist: 0.0 # tested
+  use_training_pred_optimization: False
+
+  # RS indices weights - 0 for skipping
+  lambda_rs_losses: 0.0 # RS indices vs all others - untested
+  rs_losses_criterium: "l1" # RS indices loss criterion, [l1,l2]
+  internal_rs_loss_weights:  # RS metrics internal weights
+    lambda_ndvi: 0.3333
+    lambda_ndwi: 0.3333
+    lambda_evi: 0.3333
+    lambda_savi: 0.0
+    lambda_msavi: 0.0
+    lambda_gndvi: 0.0
+
+# SatCLIP Settings
+satclip:
+  use_satclip: False
+
+# Logging and PL-Trainer Settings
+custom_configs:
+  Logging:
+    wandb_project: "NIR_GAN_val" #"exp_NIR_GAN"
+    num_val_images: 1
+    log_ndvi: True
+    log_input_stats: True
+    check_val_every_n_epoch: 20
+    time_series_frequency_epochs: 25
+
+  Model:
+    load_checkpoint: False # Continue PL-Style
+    ckpt_path: ""
+    load_weights_only: True # Load ckpt file only
+    weights_path: "/data1/simon/GitHub/NIR-GAN/logs/NIR_GAN_val/2025-08-26_21-09-53_noSC/last.ckpt" # S75K all training  #"logs/exp_NIR_GAN/2025-03-05_09-14-09/epoch=257-step=624192.ckpt"
+  Training:
+    accelerator: "cuda"
+    devices: [3]
+    strategy: "ddp" # ['ddp', 'dp']
+
+# Optim Scheduler Settings
+Schedulers:
+  metric: 'train/L1'
+  patience_g: 250
+  patience_d: 250
+  factor_g: 0.5
+  factor_d: 0.5
+  verbose: True
+  interval: 'epoch'
+
+# Data Settings
+Data:
+  normalize: False # TODO: removed this option
+  
+  # Dataloader Settings
+  train_batch_size: 4
+  val_batch_size: 5
+  num_workers: 4
+  prefetch_factor: 2
+  persistent_workers: True
+
+  # Padding for removal of edge artifacts
+  padding: False
+  padding_amount: 10
+
+  # Detailed Dataset Setttings
+  dataset_type: ['S2_75k','L8_15k','SPOT6_Windows'] # ['S2NAIP', 'S2_rand', 'S2_75k','mixed','S2_100k','worldstrat']
+  data_dir:  #'/data1/simon/datasets/inf_data/' 
+  # Individual Dataset settings
+  sen2naip_settings:
+    image_size: 256
+    base_path: "/data2/simon/"
+    dataset_type: "synthetic2"
+    return_coords: True
+  S2_rand_settings:
+    image_size: 256
+    base_path: "/data3/val_s2_tiles/"
+    return_coords: True
+    no_images: 1000
+  S2_75k_settings:
+    image_size: 256
+    base_path: "/data2/simon/nirgan_s2/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: False
+    clc_file_path: "/data2/simon/s100k/clc_4326.tif"
+    clc_mapping_file: "/data2/simon/s100k/CLC_Legend_with_Group_ID.csv"
+    return_coords: True
+  S2_100k_settings:
+    image_size: 256
+    base_path: "/data2/simon/s100k/images/"
+    continent_geojson: "/data2/simon/s100k/continents.geojson"
+    return_clc_mask: False
+    return_coords: True
+  worldstrat_settings:
+    image_type: "lr" # ["lr","hr"]
+    image_size: 256
+    return_coords: True
+  L8_15k_settings:
+    base_path: "/data2/simon/nirgan_l8/"
+    image_size: 256
+    return_coords: True
+  SPOT6_settings:
+    index_csv: "playground/spot_dataset.csv"
+    image_type: "hr" # ["lr","hr"]
+    image_size: 256
+    return_coords: True
+    return_clc_mask: False # NotImplemented
+    clc_raster: False # NotImplemented
+    clc_mapping_file: False # NotImplemented

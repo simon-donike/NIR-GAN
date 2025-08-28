@@ -44,7 +44,10 @@ if __name__ == '__main__':
         else:
             raise ValueError("Invalid Argument for Satclip")
     elif args.model_type == "gan_baseline":
-        config = OmegaConf.load("configs/config_px2px_baseline.yaml") # Gan Baseline
+        if args.satclip==True:
+            config = OmegaConf.load("configs/config_px2px_val_baseline_SC.yaml")
+        if args.satclip==False:
+            config = OmegaConf.load("configs/config_px2px_val_baseline_noSC.yaml") 
     elif args.model_type == 'vit':
         print("Model type: ViT")
         config = OmegaConf.load("configs/config_vit.yaml")
@@ -140,11 +143,10 @@ if __name__ == '__main__':
     trainer = Trainer(accelerator=config.custom_configs.Training.accelerator,
                     devices=config.custom_configs.Training.devices,
                     strategy=config.custom_configs.Training.strategy, 
-                    #check_val_every_n_epoch= 10, # config.custom_configs.Logging.check_val_every_n_epoch,
-                    #val_check_interval=50,
+                    check_val_every_n_epoch= config.custom_configs.Logging.check_val_every_n_epoch,
                     limit_val_batches=5,
-                    max_steps=200_000,
-                    max_epochs=500,
+                    #max_steps=200_000,
+                    max_epochs=1000,
                     #resume_from_checkpoint=resume_from_checkpoint,
                     logger=[ 
                                 wandb_logger,
