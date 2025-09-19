@@ -1,6 +1,3 @@
-This is the implementation repository of the IEEE JSTARS article [Near-Infrared Band Synthesis from Earth Observation Imagery with Learned Location Embeddings and Task-Driven Loss Functions](https://ieeexplore.ieee.org/abstract/document/11159252/).  
----
-  
 ## Table of Contents
 - [NIRGAN: Intro](#nir-gan-synthetic-nir-band-from-rgb-remote-sending-imagery)
   - [Project Objectives](#project-objectives)
@@ -14,7 +11,10 @@ This is the implementation repository of the IEEE JSTARS article [Near-Infrared 
 - [Train on Custom Dataset](#train-on-custom-dataset)
 - [Use Case: Semi-Synthetic Dataset Generation](#use-case-semi-synthetic-dataset-generation)
 
-
+---
+This is the implementation repository of the IEEE JSTARS article [Near-Infrared Band Synthesis from Earth Observation Imagery with Learned Location Embeddings and Task-Driven Loss Functions](https://ieeexplore.ieee.org/abstract/document/11159252/).  
+---
+  
 
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
 NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available.  
