@@ -1,6 +1,6 @@
 ## Table of Contents
 - [NIRGAN: Intro](#nir-gan-synthetic-nir-band-from-rgb-remote-sending-imagery)
-  - ["Project Objectives"](#project-objectives)
+  - [Project Objectives](#project-objectives)
   - [Results and Validation Showcase](#results-and-validation-showcase)
 - [Model Information](#model-information)
   - [Training Data](#training-data)
@@ -14,6 +14,7 @@
 
 
 # NIR-GAN: Synthetic NIR band from RGB Remote Sending Imagery
+This is the implementation of [Near-Infrared Band Synthesis from Earth Observation Imagery with Learned Location Embeddings and Task-Driven Loss Functions](https://ieeexplore.ieee.org/abstract/document/11159252/).  
 NIR-GAN is a project dedicated to predicting the Near-Infrared (NIR) band from RGB satellite imagery using a Generative Adversarial Network (GAN). The goal is to train a model that can generate an accurate synthetic NIR band, providing useful NIR information where only RGB data is available.  
 **Highlights:**
 - **Sensor-agnostic**: trained to provide realistic NIR regardless of sensor
@@ -185,6 +186,21 @@ data/synthDataset/
 ![ds_2](resources/synth_ex_2.png)
 ![ds_3](resources/synth_ex_3.png)
 ![ds_4](resources/synth_ex_4.png)
+
+### Citation 
+If you find this code useful, please cite  
+```
+@ARTICLE{11159252,
+  author={Donike, Simon and Aybar, Cesar and Contreras, Julio and Gómez-Chova, Luis},
+  journal={IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing}, 
+  title={Near-Infrared Band Synthesis from Earth Observation Imagery with Learned Location Embeddings and Task-Driven Loss Functions}, 
+  year={2025},
+  volume={},
+  number={},
+  pages={1-12},
+  doi={10.1109/JSTARS.2025.3608941}}
+
+```
 
 
 
