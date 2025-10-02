@@ -195,11 +195,11 @@ If you find this code useful, please cite
 @ARTICLE{11159252,
   author={Donike, Simon and Aybar, Cesar and Contreras, Julio and Gómez-Chova, Luis},
   journal={IEEE Journal of Selected Topics in Applied Earth Observations and Remote Sensing}, 
-  title={Near-Infrared Band Synthesis from Earth Observation Imagery with Learned Location Embeddings and Task-Driven Loss Functions}, 
+  title={Near-Infrared Band Synthesis From Earth Observation Imagery With Learned Location Embeddings and Task-Driven Loss Functions}, 
   year={2025},
-  volume={},
+  volume={18},
   number={},
-  pages={1-12},
+  pages={24319-24330},
   doi={10.1109/JSTARS.2025.3608941}}
 
 ```
